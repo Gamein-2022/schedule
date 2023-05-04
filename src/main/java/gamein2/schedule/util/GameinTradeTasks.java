@@ -1,10 +1,15 @@
 package gamein2.schedule.util;
 
 import gamein2.schedule.exception.BadRequestException;
+import gamein2.schedule.model.dto.TimeResultDTO;
 import gamein2.schedule.model.entinty.*;
+import gamein2.schedule.model.enums.LogType;
 import gamein2.schedule.model.repository.FinalProductSellOrderRepository;
+import gamein2.schedule.model.repository.LogRepository;
 import gamein2.schedule.model.repository.StorageProductRepository;
+import gamein2.schedule.model.repository.TimeRepository;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -12,6 +17,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class GameinTradeTasks {
+
+    private final LogRepository logRepository;
     private final HashMap<Long, Integer> demands = new HashMap<>();
     private final HashMap<Long, Double> brands = new HashMap<>();
     private final int totalDemand;
@@ -27,11 +34,14 @@ public class GameinTradeTasks {
     private HashMap<Long, Double> prevBrandsMap = null;
     private HashMap<Long, Double> prevPrevBrandsMap = null;
 
-    public GameinTradeTasks(List<Brand> previousBrands, List<Brand> previousPreviousBrands, int totalDemand,
+    private final TimeRepository timeRepository;
+
+    public GameinTradeTasks(List<Brand> previousBrands, List<Brand> previousPreviousBrands, LogRepository logRepository, int totalDemand,
                             Date firstTime, Date secondTime, Date thirdTime, Date fourthTime, List<Product> products,
                             List<FinalProductSellOrder> orders, List<Team> teams,
                             FinalProductSellOrderRepository finalProductSellOrderRepository,
-                            StorageProductRepository spRepo) {
+                            StorageProductRepository spRepo, TimeRepository timeRepository) {
+        this.logRepository = logRepository;
         this.totalDemand = totalDemand;
         this.firstTime = firstTime;
         this.secondTime = secondTime;
@@ -42,6 +52,7 @@ public class GameinTradeTasks {
         this.teams = teams;
         this.finalProductSellOrderRepository = finalProductSellOrderRepository;
         this.spRepo = spRepo;
+        this.timeRepository = timeRepository;
 
         if (previousPreviousBrands.size() > 0) {
             prevPrevBrandsMap = new HashMap<>();
@@ -72,6 +83,7 @@ public class GameinTradeTasks {
 
     public void divideDemandByProduct(List<FinalProductSellOrder> orders,
                                       Product product) {
+        Time time = timeRepository.findById(1L).get();
         int demand = demands.get(product.getId());
         int totalSold = 0;
         double totalBrandOnPrice;
@@ -111,7 +123,7 @@ public class GameinTradeTasks {
                 break;
             }
         }
-
+        TimeResultDTO timeResultDTO = TimeUtil.getTime(time);
         orders.forEach(order -> {
             order.setClosed(true);
             try {
@@ -121,6 +133,18 @@ public class GameinTradeTasks {
                 );
                 TeamUtil.removeProductFromBlocked(sp, order.getQuantity());
                 spRepo.save(sp);
+                Log log = new Log();
+                log.setProduct(order.getProduct());
+                log.setType(LogType.FINAL_SELL);
+                log.setProductCount(Long.valueOf(order.getSoldQuantity()));
+                log.setTeam(order.getSubmitter());
+                log.setTotalCost(log.getProductCount() * order.getUnitPrice());
+                log.setTimestamp(LocalDateTime.of(Math.toIntExact(timeResultDTO.getYear()),
+                        Math.toIntExact(timeResultDTO.getMonth()),
+                        Math.toIntExact(timeResultDTO.getDay()),
+                        12,
+                        23));
+                logRepository.save(log);
             } catch (BadRequestException e) {
                 System.err.println(e.getMessage());
             }

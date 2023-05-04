@@ -1,9 +1,12 @@
 package gamein2.schedule.service;
 
+import gamein2.schedule.model.dto.TimeResultDTO;
 import gamein2.schedule.model.entinty.*;
+import gamein2.schedule.model.enums.LogType;
 import gamein2.schedule.model.repository.*;
 import gamein2.schedule.util.GameinTradeTasks;
 import gamein2.schedule.util.RestUtil;
+import gamein2.schedule.util.TimeUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -34,12 +37,16 @@ public class ScheduleService {
     private final BrandRepository brandRepository;
 
     private final RegionRepository regionRepository;
+
+    private final LogRepository logRepository;
+
+
     @Value("${live.data.url}")
     private String liveUrl;
 
     private final StorageProductRepository storageProductRepository;
 
-    public ScheduleService(TimeRepository timeRepository, TeamRepository teamRepository, TeamResearchRepository teamResearchRepository, FinalProductSellOrderRepository finalProductSellOrderRepository, ProductRepository productRepository, DemandRepository demandRepository, BrandRepository brandRepository, RegionRepository regionRepository, StorageProductRepository storageProductRepository) {
+    public ScheduleService(TimeRepository timeRepository, TeamRepository teamRepository, TeamResearchRepository teamResearchRepository, FinalProductSellOrderRepository finalProductSellOrderRepository, ProductRepository productRepository, DemandRepository demandRepository, BrandRepository brandRepository, RegionRepository regionRepository, LogRepository logRepository, StorageProductRepository storageProductRepository) {
         this.timeRepository = timeRepository;
         this.teamRepository = teamRepository;
         this.teamResearchRepository = teamResearchRepository;
@@ -48,6 +55,7 @@ public class ScheduleService {
         this.demandRepository = demandRepository;
         this.brandRepository = brandRepository;
         this.regionRepository = regionRepository;
+        this.logRepository = logRepository;
         this.storageProductRepository = storageProductRepository;
     }
 
@@ -57,6 +65,7 @@ public class ScheduleService {
         Time time = timeRepository.findById(1L).get();
         if (!time.getIsGamePaused() && time.getIsRegionPayed()) {
             List<Team> allTeams = teamRepository.findAll();
+            TimeResultDTO timeResultDTO = TimeUtil.getTime(time);
             for (Team team : allTeams) {
                 long cost = 0L;
                 List<StorageProduct> teamProducts = storageProductRepository.findAllByTeamId(team.getId());
@@ -64,9 +73,21 @@ public class ScheduleService {
                     long totalVolume = (long) storageProduct.getProduct().getUnitVolume() * storageProduct.getInStorageAmount();
                     cost += totalVolume * storageProduct.getProduct().getMinPrice();
                 }
-
-                if (team.getBalance() >= cost / time.getStorageCostScale())
+                if (team.getBalance() >= cost / time.getStorageCostScale()){
                     team.setBalance(team.getBalance() - cost / time.getStorageCostScale());
+                    Log log = new Log();
+                    log.setType(LogType.STORAGE_COST);
+                    log.setTeam(team);
+                    log.setTotalCost(cost / time.getStorageCostScale());
+                    log.setProductCount(0L);
+                    log.setTimestamp(LocalDateTime.of(Math.toIntExact(timeResultDTO.getYear()),
+                            Math.toIntExact(timeResultDTO.getMonth()),
+                            Math.toIntExact(timeResultDTO.getDay()),
+                            12,
+                            23));
+                    logRepository.save(log);
+
+                }
             }
             String text = "هزینه انبارداری این ماه از حساب شما برداشت شد.";
             RestUtil.sendNotificationToAll(text, "UPDATE_BALANCE", liveUrl);
@@ -101,7 +122,7 @@ public class ScheduleService {
             List<Brand> previousPreviousBrands = brandRepository.findAllByPeriod(fiveMinutesFromBeginning - 2);
 
             HashMap<Long, Double> newBrandsMap = new GameinTradeTasks(
-                    previousBrands, previousPreviousBrands, demand.getDemand(),
+                    previousBrands, previousPreviousBrands, logRepository, demand.getDemand(),
                     first != null ? first.getEndTime() : null,
                     second != null ? second.getEndTime() : null,
                     third != null ? third.getEndTime() : null,
@@ -109,7 +130,7 @@ public class ScheduleService {
                     products,
                     orders,
                     teams,
-                    finalProductSellOrderRepository, storageProductRepository).run();
+                    finalProductSellOrderRepository, storageProductRepository, timeRepository).run();
             List<Brand> newBrands = new ArrayList<>();
             for (Map.Entry<Long, Double> brand : newBrandsMap.entrySet()) {
                 Brand b = new Brand();
