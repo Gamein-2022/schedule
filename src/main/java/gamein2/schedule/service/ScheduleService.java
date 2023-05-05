@@ -1,8 +1,9 @@
 package gamein2.schedule.service;
 
 import gamein2.schedule.model.dto.TimeResultDTO;
-import gamein2.schedule.model.entinty.*;
+import gamein2.schedule.model.entity.*;
 import gamein2.schedule.model.enums.LogType;
+import gamein2.schedule.model.enums.ShippingMethod;
 import gamein2.schedule.model.repository.*;
 import gamein2.schedule.util.GameinTradeTasks;
 import gamein2.schedule.util.RestUtil;
@@ -25,28 +26,21 @@ import java.util.stream.Collectors;
 public class ScheduleService {
     private final TimeRepository timeRepository;
     private final TeamRepository teamRepository;
-
     private final TeamResearchRepository teamResearchRepository;
-
     private final FinalProductSellOrderRepository finalProductSellOrderRepository;
-
     private final ProductRepository productRepository;
-
     private final DemandRepository demandRepository;
-
     private final BrandRepository brandRepository;
-
     private final RegionRepository regionRepository;
-
     private final LogRepository logRepository;
-
+    private final StorageProductRepository storageProductRepository;
+    private final OrderRepository orderRepository;
+    private final OfferRepository offerRepository;
 
     @Value("${live.data.url}")
     private String liveUrl;
 
-    private final StorageProductRepository storageProductRepository;
-
-    public ScheduleService(TimeRepository timeRepository, TeamRepository teamRepository, TeamResearchRepository teamResearchRepository, FinalProductSellOrderRepository finalProductSellOrderRepository, ProductRepository productRepository, DemandRepository demandRepository, BrandRepository brandRepository, RegionRepository regionRepository, LogRepository logRepository, StorageProductRepository storageProductRepository) {
+    public ScheduleService(TimeRepository timeRepository, TeamRepository teamRepository, TeamResearchRepository teamResearchRepository, FinalProductSellOrderRepository finalProductSellOrderRepository, ProductRepository productRepository, DemandRepository demandRepository, BrandRepository brandRepository, RegionRepository regionRepository, LogRepository logRepository, StorageProductRepository storageProductRepository, OrderRepository orderRepository, OfferRepository offerRepository) {
         this.timeRepository = timeRepository;
         this.teamRepository = teamRepository;
         this.teamResearchRepository = teamResearchRepository;
@@ -57,6 +51,8 @@ public class ScheduleService {
         this.regionRepository = regionRepository;
         this.logRepository = logRepository;
         this.storageProductRepository = storageProductRepository;
+        this.orderRepository = orderRepository;
+        this.offerRepository = offerRepository;
     }
 
     @Transactional
@@ -95,10 +91,14 @@ public class ScheduleService {
     }
 
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
-    private void buy() {
+    private void buyFinalProducts() {
         try {
             System.out.println("scheduled task");
             Time time = timeRepository.findById(1L).get();
+            LocalDateTime nextTime = LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5);
+            time.setNextFinalOrderTime(nextTime);
+            timeRepository.save(time);
+
             long fiveMinutesFromBeginning =
                     (Duration.ofSeconds(
                             Duration.between(time.getBeginTime(), LocalDateTime.now(ZoneOffset.UTC)).toSeconds() - time.getStoppedTimeSeconds()
@@ -142,15 +142,31 @@ public class ScheduleService {
             brandRepository.saveAll(newBrands);
             finalProductSellOrderRepository.saveAll(orders);
             teamRepository.saveAll(orders.stream().map(FinalProductSellOrder::getSubmitter).collect(Collectors.toList()));
-            Date nextTime = new Date(
-                    (new Date().getTime()) + (5 * 60 * 1000)
-            );
-            time.setNextFinalOrderTime(nextTime);
-            timeRepository.save(time);
         } catch (Exception e) {
             System.err.println("Error in scheduled task: trade service handler:");
             System.err.println(e.getMessage());
         }
+    }
+
+    @Scheduled(fixedDelay = 3, timeUnit = TimeUnit.MINUTES)
+    public void tradeOffers() {
+        Optional<Team> teamOptional = teamRepository.findById(0L);
+        if (teamOptional.isEmpty()) {
+            System.err.println("gamein team not found!");
+            return;
+        }
+        Team gamein = teamOptional.get();
+        for (Order order : orderRepository.allConvincingOrders(LocalDateTime.now(ZoneOffset.UTC).minusMinutes(6))) {
+            System.out.println(order);
+            Offer offer = new Offer();
+            offer.setOfferer(gamein);
+            offer.setCreationDate(LocalDateTime.now(ZoneOffset.UTC));
+            offer.setOrder(order);
+            offer.setShippingMethod(ShippingMethod.SAME_REGION);
+            offerRepository.save(offer);
+        }
+        gamein.setRegion(new Random().nextInt(8) + 1);
+        teamRepository.save(gamein);
     }
 
     @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.SECONDS)

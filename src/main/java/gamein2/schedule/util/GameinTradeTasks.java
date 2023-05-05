@@ -2,7 +2,7 @@ package gamein2.schedule.util;
 
 import gamein2.schedule.exception.BadRequestException;
 import gamein2.schedule.model.dto.TimeResultDTO;
-import gamein2.schedule.model.entinty.*;
+import gamein2.schedule.model.entity.*;
 import gamein2.schedule.model.enums.LogType;
 import gamein2.schedule.model.repository.FinalProductSellOrderRepository;
 import gamein2.schedule.model.repository.LogRepository;

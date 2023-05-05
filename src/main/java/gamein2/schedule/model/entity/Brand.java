@@ -1,4 +1,4 @@
-package gamein2.schedule.model.entinty;
+package gamein2.schedule.model.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -8,24 +8,23 @@ import lombok.Setter;
 import javax.persistence.*;
 
 @Entity
+@Table(name = "brand")
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "REGION")
-public class Region {
+public class Brand {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", unique = true, nullable = false)
     private Long id;
 
-    @Column(name = "region_id")
-    private Integer regionId;
+    @Column(name = "period")
+    private Long period;
 
-    @Column(name = "region_population")
-    private Long regionPopulation;
+    @Column(name = "brand")
+    private Double brand;
 
-    @Column(name = "region_payed")
-    private Long regionPayed;
-
+    @ManyToOne
+    Team team;
 }

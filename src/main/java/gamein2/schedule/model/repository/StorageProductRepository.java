@@ -1,7 +1,6 @@
 package gamein2.schedule.model.repository;
 
-import gamein2.schedule.model.entinty.StorageProduct;
-import org.springframework.data.jpa.repository.JpaRepository;
+import gamein2.schedule.model.entity.StorageProduct;
 import org.springframework.data.repository.CrudRepository;
 
 import java.util.List;

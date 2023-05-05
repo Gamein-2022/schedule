@@ -1,4 +1,4 @@
-package gamein2.schedule.model.entinty;
+package gamein2.schedule.model.entity;
 
 
 import lombok.AllArgsConstructor;
@@ -53,7 +53,7 @@ public class Time {
     private Long upgradeStorageCost;
 
     @Column(name = "next_final_order_time")
-    private Date nextFinalOrderTime;
+    private LocalDateTime nextFinalOrderTime;
 
     @Column(name = "scale", nullable = false, columnDefinition = "bigint default 0.25")
     private Long scale = 1000000L;

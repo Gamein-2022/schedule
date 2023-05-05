@@ -1,7 +1,7 @@
 package gamein2.schedule.util;
 
 import gamein2.schedule.model.dto.TimeResultDTO;
-import gamein2.schedule.model.entinty.Time;
+import gamein2.schedule.model.entity.Time;
 
 import java.time.Duration;
 import java.time.LocalDateTime;

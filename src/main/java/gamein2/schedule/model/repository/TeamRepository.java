@@ -1,6 +1,6 @@
 package gamein2.schedule.model.repository;
 
-import gamein2.schedule.model.entinty.Team;
+import gamein2.schedule.model.entity.Team;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 

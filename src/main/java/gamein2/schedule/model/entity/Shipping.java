@@ -1,4 +1,4 @@
-package gamein2.schedule.model.entinty;
+package gamein2.schedule.model.entity;
 
 import gamein2.schedule.model.dto.ShippingDTO;
 import gamein2.schedule.model.enums.ShippingMethod;

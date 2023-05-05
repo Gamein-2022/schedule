@@ -1,4 +1,4 @@
-package gamein2.schedule.model.entinty;
+package gamein2.schedule.model.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
