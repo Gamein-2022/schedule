@@ -68,7 +68,7 @@ public class ScheduleService {
                 long cost = 0L;
                 List<StorageProduct> teamProducts = storageProductRepository.findAllByTeamId(team.getId());
                 for (StorageProduct storageProduct : teamProducts) {
-                    long totalVolume = (long) storageProduct.getProduct().getUnitVolume() * storageProduct.getInStorageAmount();
+                    long totalVolume = storageProduct.getInStorageAmount();
                     cost += totalVolume * storageProduct.getProduct().getMinPrice();
                 }
                 if (team.getBalance() >= cost / time.getStorageCostScale()){
