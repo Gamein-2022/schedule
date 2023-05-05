@@ -91,7 +91,7 @@ public class ScheduleService {
     }
 
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
-    private void buyFinalProducts() {
+    public void buyFinalProducts() {
         try {
             System.out.println("scheduled task");
             Time time = timeRepository.findById(1L).get();
