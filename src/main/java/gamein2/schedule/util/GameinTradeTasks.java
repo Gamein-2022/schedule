@@ -154,7 +154,7 @@ public class GameinTradeTasks {
     }
 
     private void calculateDemands() {
-        int firstEraDemand = totalDemand;
+        int firstEraDemand = (int) (totalDemand * timeRepository.findById(1L).get().getDemandScale());
         int secondEraDemand = 0;
         int thirdEraDemand = 0;
         int fourthEraDemand = 0;
@@ -211,55 +211,55 @@ public class GameinTradeTasks {
     }
 
     private void calculateBrands() {
-        double alpha = -1.0;
-        double betta = -1.0;
-        double theta = 1.0;
-        double lambda = 1.0;
-
-        HashMap<Long, Double> formulae = new HashMap<>();
-        double sumFormulae = 0;
+//        double alpha = -1.0;
+//        double betta = -1.0;
+//        double theta = 1.0;
+//        double lambda = 1.0;
+//
+//        HashMap<Long, Double> formulae = new HashMap<>();
+//        double sumFormulae = 0;
+//        for (Team team : teams) {
+//            Long totalSellAmount = finalProductSellOrderRepository.totalSoldAmount(team.getId());
+//            if (totalSellAmount == null) totalSellAmount = 0L;
+//            double formula =
+//                    alpha * Math.pow(getCarbonFootprint(), lambda) +
+//                            betta * calculateSecondBrandFactor(team.getId(), totalSellAmount) +
+//                            theta * totalSellAmount;
+//            formulae.put(team.getId(), formula);
+//            sumFormulae += formula;
+//        }
         for (Team team : teams) {
-            Long totalSellAmount = finalProductSellOrderRepository.totalSoldAmount(team.getId());
-            if (totalSellAmount == null) totalSellAmount = 0L;
-            double formula =
-                    alpha * Math.pow(getCarbonFootprint(), lambda) +
-                            betta * calculateSecondBrandFactor(team.getId(), totalSellAmount) +
-                            theta * totalSellAmount;
-            formulae.put(team.getId(), formula);
-            sumFormulae += formula;
-        }
-        for (Team team : teams) {
-            brands.put(team.getId(), (formulae.get(team.getId()) / sumFormulae) * 100);
+            brands.put(team.getId(), 50.0);
         }
     }
 
-    private double calculateSecondBrandFactor(Long teamId, Long totalSellAmount) {
-        double result = 0;
-        for (Long productId : finalProductSellOrderRepository.findProduct_IdsByTeam_Id(teamId)) {
-            double deltaBrand = meanDeltaBrand(productId);
-            if (deltaBrand == 0) {
-                continue;
-            }
-            Long sellAmount = finalProductSellOrderRepository.totalProductSoldAmount(teamId, productId);
-            if (sellAmount == null) sellAmount = 0L;
-            result += ((double) sellAmount / totalSellAmount) * deltaBrand;
-        }
-        return result;
-    }
+//    private double calculateSecondBrandFactor(Long teamId, Long totalSellAmount) {
+//        double result = 0;
+//        for (Long productId : finalProductSellOrderRepository.findProduct_IdsByTeam_Id(teamId)) {
+//            double deltaBrand = meanDeltaBrand(productId);
+//            if (deltaBrand == 0) {
+//                continue;
+//            }
+//            Long sellAmount = finalProductSellOrderRepository.totalProductSoldAmount(teamId, productId);
+//            if (sellAmount == null) sellAmount = 0L;
+//            result += ((double) sellAmount / totalSellAmount) * deltaBrand;
+//        }
+//        return result;
+//    }
+//
+//    private double meanDeltaBrand(Long productId) {
+//        if (prevBrandsMap == null || prevPrevBrandsMap == null) {
+//            return 0;
+//        }
+//        List<Long> teamIds = finalProductSellOrderRepository.findTeam_IdsByProduct_Id(productId);
+//        double sumDeltaBrand = 0;
+//        for (Long teamId : teamIds) {
+//            sumDeltaBrand += prevBrandsMap.get(teamId) - prevPrevBrandsMap.get(teamId);
+//        }
+//        return sumDeltaBrand / teamIds.size();
+//    }
 
-    private double meanDeltaBrand(Long productId) {
-        if (prevBrandsMap == null || prevPrevBrandsMap == null) {
-            return 0;
-        }
-        List<Long> teamIds = finalProductSellOrderRepository.findTeam_IdsByProduct_Id(productId);
-        double sumDeltaBrand = 0;
-        for (Long teamId : teamIds) {
-            sumDeltaBrand += prevBrandsMap.get(teamId) - prevPrevBrandsMap.get(teamId);
-        }
-        return sumDeltaBrand / teamIds.size();
-    }
-
-    private int getCarbonFootprint() {
-        return 50;
-    }
+//    private int getCarbonFootprint() {
+//        return 50;
+//    }
 }

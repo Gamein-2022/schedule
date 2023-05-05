@@ -57,4 +57,7 @@ public class Time {
 
     @Column(name = "scale", nullable = false, columnDefinition = "bigint default 0.25")
     private Long scale = 1000000L;
+
+    @Column(name = "demand_scale", nullable = false, columnDefinition = "double precision default 1.0")
+    private Double demandScale = 1.0;
 }
