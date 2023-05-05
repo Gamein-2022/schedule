@@ -9,6 +9,7 @@ import gamein2.schedule.util.GameinTradeTasks;
 import gamein2.schedule.util.RestUtil;
 import gamein2.schedule.util.TimeUtil;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 
 @Service
 @EnableScheduling
+@Configuration
 public class ScheduleService {
     private final TimeRepository timeRepository;
     private final TeamRepository teamRepository;
@@ -66,7 +68,7 @@ public class ScheduleService {
                 long cost = 0L;
                 List<StorageProduct> teamProducts = storageProductRepository.findAllByTeamId(team.getId());
                 for (StorageProduct storageProduct : teamProducts) {
-                    long totalVolume = (long) storageProduct.getProduct().getUnitVolume() * storageProduct.getInStorageAmount();
+                    long totalVolume = storageProduct.getInStorageAmount();
                     cost += totalVolume * storageProduct.getProduct().getMinPrice();
                 }
                 if (team.getBalance() >= cost / time.getStorageCostScale()){
@@ -91,7 +93,7 @@ public class ScheduleService {
     }
 
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
-    private void buyFinalProducts() {
+    public void buyFinalProducts() {
         try {
             System.out.println("scheduled task");
             Time time = timeRepository.findById(1L).get();
