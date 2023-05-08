@@ -1,5 +1,4 @@
 name: deploy schedule
-
 on:
   push:
     branches: [ "master" ]
