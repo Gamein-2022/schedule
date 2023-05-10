@@ -121,7 +121,7 @@ public class ScheduleService {
             Demand demand = demandOptional.get();
 
             new GameinTradeTasks(
-                    logRepository, demand.getDemand(),
+                    logRepository, (int) (time.getDemandMultiplier() * demand.getDemand()),
                     first != null ? first.getEndTime() : null,
                     second != null ? second.getEndTime() : null,
                     third != null ? third.getEndTime() : null,

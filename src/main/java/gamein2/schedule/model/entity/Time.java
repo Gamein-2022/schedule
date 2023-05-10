@@ -78,4 +78,7 @@ public class Time {
 
     @Column(name = "ship_var_price", nullable = false, columnDefinition = "integer default 100")
     private Integer shipVarPrice = 100;
+
+    @Column(name = "demand_multiplier", nullable = false, columnDefinition = "double precision default 1.0")
+    private Double demandMultiplier;
 }
