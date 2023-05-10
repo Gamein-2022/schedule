@@ -1,5 +1,6 @@
 package gamein2.schedule.service;
 
+import gamein2.schedule.model.dto.RegionDTO;
 import gamein2.schedule.model.dto.TimeResultDTO;
 import gamein2.schedule.model.entity.*;
 import gamein2.schedule.model.enums.LogType;
@@ -71,7 +72,7 @@ public class ScheduleService {
                     long totalVolume = storageProduct.getInStorageAmount();
                     cost += totalVolume * storageProduct.getProduct().getMinPrice();
                 }
-                if (team.getBalance() >= cost / time.getStorageCostScale()){
+                if (team.getBalance() >= cost / time.getStorageCostScale()) {
                     team.setBalance(team.getBalance() - cost / time.getStorageCostScale());
                     Log log = new Log();
                     log.setType(LogType.STORAGE_COST);
@@ -161,31 +162,39 @@ public class ScheduleService {
     @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.SECONDS)
     public void payRegionPrice() {
         Time time = timeRepository.findById(1L).get();
-        Long duration =  Duration.between(time.getBeginTime(),LocalDateTime.now(ZoneOffset.UTC)).toSeconds();
+        Long duration = Duration.between(time.getBeginTime(), LocalDateTime.now(ZoneOffset.UTC)).toSeconds();
         boolean isChooseRegionFinished = duration - time.getStoppedTimeSeconds() > time.getChooseRegionDuration();
-        if (! time.getIsRegionPayed() && isChooseRegionFinished){
-            List<Region> regions = regionRepository.findAll();
+        if (!time.getIsRegionPayed() && isChooseRegionFinished) {
+            /*List<Region> regions = regionRepository.findAll();*/
+            Map<Integer, Long> regionsPopulation = RegionDTO.getRegionsPopulation(teamRepository.getRegionsPopulation());
             List<Team> teams = teamRepository.findAll();
-            for (Team team : teams){
-                if (team.getRegion() == 0){
+            for (Team team : teams) {
+                if (team.getRegion() == 0) {
                     Random random = new Random();
                     team.setRegion(random.nextInt(8) + 1);
-                    Region region = regions.get(team.getRegion() - 1);
-                    region.setRegionPopulation(region.getRegionPopulation() + 1);
+                    regionsPopulation.put(team.getRegion(), regionsPopulation.get(team.getRegion()) + 1);
                 }
             }
-            for (Region region: regions){
-                region.setRegionPayed(calculateRegionPrice(region.getRegionPopulation()));
+            for (int i = 1; i < 9 ; i ++){
+                if (!regionsPopulation.containsKey(i))
+                    regionsPopulation.put(i,0L);
             }
-            for (Team team : teams){
-                team.setBalance(team.getBalance() - regions.get(team.getRegion() - 1).getRegionPayed());
+            Map<Long, Long> regionsPrice = new HashMap<>();
+            for (int i = 1; i < 9; i++) {
+                Region region = regionRepository.findFirstByRegionId(i);
+                Long price = calculateRegionPrice(regionsPopulation.get(i));
+                regionsPrice.put((long) i, price);
+                region.setRegionPayed(price);
+                regionRepository.save(region);
             }
-            regionRepository.saveAll(regions);
+            for (Team team : teams) {
+                team.setBalance(team.getBalance() - regionsPrice.get((long) team.getRegion()));
+            }
             teamRepository.saveAll(teams);
             time.setIsRegionPayed(true);
             timeRepository.save(time);
             String text = "هزینه زمین از حساب شما برداشت شد.";
-            RestUtil.sendNotificationToAll(text,"UPDATE_BALANCE",liveUrl);
+            RestUtil.sendNotificationToAll(text, "UPDATE_BALANCE", liveUrl);
         }
     }
 

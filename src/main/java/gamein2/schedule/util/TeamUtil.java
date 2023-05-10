@@ -6,6 +6,7 @@ import gamein2.schedule.model.enums.ShippingMethod;
 import gamein2.schedule.model.repository.StorageProductRepository;
 import gamein2.schedule.model.repository.TeamRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 import static java.lang.Math.abs;
@@ -13,11 +14,12 @@ import static java.lang.Math.pow;
 
 public class TeamUtil {
 
-    public static int calculateStorageSpace(Team team) {
-        return team.getIsStorageUpgraded() ? 75_000_000 : 50_000_000;
+    public static int calculateStorageSpace(Team team, Time time) {
+        return team.getIsStorageUpgraded() ? time.getStorageUpgradedCapacity() : time.getStorageBaseCapacity();
     }
-    public static int calculateAvailableSpace(Team team) {
-        int result = calculateStorageSpace(team);
+
+    public static int calculateAvailableSpace(Team team, Time time) {
+        int result = calculateStorageSpace(team, time);
         for (StorageProduct storageProduct : team.getStorageProducts()) {
             long unitVolume = storageProduct.getProduct().getUnitVolume();
             result -= storageProduct.getInStorageAmount() * unitVolume;
@@ -64,7 +66,6 @@ public class TeamUtil {
 
         return sp;
     }
-
     public static StorageProduct unblockProduct(StorageProduct sp, Integer amount)
             throws BadRequestException {
         if (sp.getBlockedAmount() < amount) {
@@ -88,13 +89,19 @@ public class TeamUtil {
         return sp;
     }
 
-    public static StorageProduct removeProductFromStorage(StorageProduct sp, Integer amount)
+    public static StorageProduct removeProductFromStorage(Team team, Product product, Integer amount,
+                                                          StorageProductRepository storageProductRepository)
             throws BadRequestException {
-        if (sp.getInStorageAmount() < amount) {
-            throw new BadRequestException("شما مقدار کافی " + sp.getProduct().getName() + " ندارید!");
+        StorageProduct sp = getSPFromProduct(team, product, storageProductRepository);
+        if (sp.getInStorageAmount() - sp.getBlockedAmount() < amount) {
+            throw new BadRequestException("شما مقدار کافی " + product.getName() + " ندارید!");
         }
 
         sp.setInStorageAmount(sp.getInStorageAmount() - amount);
+
+        if (sp.getSellableAmount() > sp.getInStorageAmount()) {
+            sp.setSellableAmount(sp.getInStorageAmount());
+        }
 
         return sp;
     }
@@ -117,6 +124,24 @@ public class TeamUtil {
         }
 
         sp.setBlockedAmount(sp.getBlockedAmount() - amount);
+
+        return sp;
+    }
+
+    public static StorageProduct removeProductFromSellable(StorageProduct sp, Integer amount)
+            throws BadRequestException {
+        if (sp.getSellableAmount() < amount) {
+            throw new BadRequestException("این مقدار " + sp.getProduct().getName() + " قابل فروش نیست!");
+        }
+
+        sp.setSellableAmount(sp.getSellableAmount() - amount);
+
+        return sp;
+    }
+
+    public static StorageProduct addProductToSellable(StorageProduct sp, Integer amount)
+            throws BadRequestException {
+        sp.setSellableAmount(sp.getSellableAmount() + amount);
 
         return sp;
     }
@@ -152,10 +177,11 @@ public class TeamUtil {
         }
     }
 
-    public static int calculateShippingPrice(ShippingMethod method, int distance, int volume) {
-        int price = 10000 + 100 * (int) pow(distance * volume, 0.5);
-        return method == ShippingMethod.SAME_REGION ? 10000 : method == ShippingMethod.SHIP ?
-                price : 3 * price;
+    public static int calculateShippingPrice(ShippingMethod method, int distance, int volume, Time time) {
+        int basePrice = method == ShippingMethod.SHIP ? time.getShipBasePrice() : time.getPlaneBasePrice();
+        int varPrice = method == ShippingMethod.SHIP ? time.getShipVarPrice() : time.getPlaneVarPrice();
+        int price = basePrice + varPrice * (int) pow(distance * volume, 0.5);
+        return method == ShippingMethod.SAME_REGION ? time.getShipBasePrice() : price;
     }
 
     public static int calculateShippingDuration(ShippingMethod method, int distance) {

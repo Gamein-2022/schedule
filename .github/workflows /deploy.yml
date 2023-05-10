@@ -1,0 +1,48 @@
+
+
+name: deploy dashboard
+
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+#   check-code:
+#     runs-on: [self-hosted, linux]
+#     steps:
+#       - uses: actions/checkout@master
+#       - run: |
+#              export PATH=$PATH:/opt/gradle/gradle-8.1.1/bin
+#              echo $PATH
+#              gradle -v
+#              gradle  --stacktrace sonar \
+#               -Dsonar.projectKey=dashboard \
+#               -Dsonar.projectName='dashboard' \
+#               -Dsonar.host.url=http://192.168.0.202:9000 \
+#               -Dsonar.token=sqp_ae9abc486797b516f685843f5b9575e048ccaba4
+
+  build-schedule:
+    #needs: check-code
+    runs-on: [app]
+    steps:
+      - uses: actions/checkout@master
+      - run: |
+              docker login   -u daria -p 7HlUyiSD  https://registry.dariasystem.com
+              docker build -t registry.dariasystem.com/gamein/schedule:dev .
+              docker push registry.dariasystem.com/gamein/schedule:dev
+ 
+ 
+  deploy-schedule:
+    needs: build-schedule
+    runs-on: [app]
+    steps:
+      - uses: actions/checkout@master
+      - run: | 
+              docker login   -u daria -p 7HlUyiSD  https://registry.dariasystem.com
+              docker pull registry.dariasystem.com/gamein/schedule:dev
+              docker rm -f schedule      
+              docker-compose up  -d schedule
+              sleep 10
+              docker compose ps
+              
+              

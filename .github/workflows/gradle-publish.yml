@@ -1,0 +1,34 @@
+
+
+name: deploy schedule
+
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+
+  build-schedule:
+    #needs: check-code
+    runs-on: [app-2]
+    steps:
+      - uses: actions/checkout@master
+      - run: |
+              docker login   -u daria -p 7HlUyiSD  https://registry.dariasystem.com
+              docker build -t registry.dariasystem.com/gamein/schedule:dev .
+              docker push registry.dariasystem.com/gamein/schedule:dev
+ 
+ 
+  deploy-schedule:
+    needs: build-schedule
+    runs-on: [app]
+    steps:
+      - uses: actions/checkout@master
+      - run: | 
+              docker login   -u daria -p 7HlUyiSD  https://registry.dariasystem.com
+              docker pull registry.dariasystem.com/gamein/schedule:dev
+              docker rm -f schedule      
+              docker-compose up  -d schedule
+              sleep 10
+              docker compose ps
+              

@@ -109,25 +109,24 @@ public class GameinTradeTasks {
         TimeResultDTO timeResultDTO = TimeUtil.getTime(time);
         orders.forEach(order -> {
             order.setClosed(true);
+            Log log = new Log();
+            log.setProduct(order.getProduct());
+            log.setType(LogType.FINAL_SELL);
+            log.setProductCount(Long.valueOf(order.getSoldQuantity()));
+            log.setTeam(order.getSubmitter());
+            log.setTotalCost(log.getProductCount() * order.getUnitPrice());
+            log.setTimestamp(LocalDateTime.of(Math.toIntExact(timeResultDTO.getYear()),
+                    Math.toIntExact(timeResultDTO.getMonth()),
+                    Math.toIntExact(timeResultDTO.getDay()),
+                    12,
+                    34));
+            logRepository.save(log);
             try {
                 StorageProduct sp = TeamUtil.removeProductFromStorage(
-                        TeamUtil.getSPFromProduct(order.getSubmitter(), order.getProduct(), spRepo),
-                        order.getSoldQuantity()
+                        order.getSubmitter(), order.getProduct(), order.getSoldQuantity(),spRepo
                 );
                 TeamUtil.removeProductFromBlocked(sp, order.getQuantity());
                 spRepo.save(sp);
-                Log log = new Log();
-                log.setProduct(order.getProduct());
-                log.setType(LogType.FINAL_SELL);
-                log.setProductCount(Long.valueOf(order.getSoldQuantity()));
-                log.setTeam(order.getSubmitter());
-                log.setTotalCost(log.getProductCount() * order.getUnitPrice());
-                log.setTimestamp(LocalDateTime.of(Math.toIntExact(timeResultDTO.getYear()),
-                        Math.toIntExact(timeResultDTO.getMonth()),
-                        Math.toIntExact(timeResultDTO.getDay()),
-                        12,
-                        23));
-                logRepository.save(log);
             } catch (BadRequestException e) {
                 System.err.println(e.getMessage());
             }
