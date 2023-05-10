@@ -40,7 +40,7 @@ public class DemandLog {
     @Column(name = "fifth_era_demand", nullable = false)
     private Integer fifthEraDemand;
 
-    @Column(name = "product_demands", nullable = false)
+    @Column(name = "product_demands", nullable = false, columnDefinition = "varchar(4096) default \"\"")
     private String productDemands;
 
     @Column(name = "time", nullable = false)

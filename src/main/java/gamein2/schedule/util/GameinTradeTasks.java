@@ -6,6 +6,7 @@ import gamein2.schedule.model.entity.*;
 import gamein2.schedule.model.enums.LogType;
 import gamein2.schedule.model.repository.*;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -19,10 +20,10 @@ public class GameinTradeTasks {
     private final LogRepository logRepository;
     private final HashMap<Long, Integer> demands = new HashMap<>();
     private final int totalDemand;
-    private final Date firstTime;
-    private final Date secondTime;
-    private final Date thirdTime;
-    private final Date fourthTime;
+    private final LocalDateTime firstTime;
+    private final LocalDateTime secondTime;
+    private final LocalDateTime thirdTime;
+    private final LocalDateTime fourthTime;
     private final List<Product> products;
     private final List<FinalProductSellOrder> orders;
     private final FinalProductSellOrderRepository finalProductSellOrderRepository;
@@ -32,7 +33,7 @@ public class GameinTradeTasks {
     private final Long fiveMinutesFromBeginning;
 
     public GameinTradeTasks(LogRepository logRepository, int totalDemand,
-                            Date firstTime, Date secondTime, Date thirdTime, Date fourthTime, List<Product> products,
+                            LocalDateTime firstTime, LocalDateTime secondTime, LocalDateTime thirdTime, LocalDateTime fourthTime, List<Product> products,
                             List<FinalProductSellOrder> orders,
                             FinalProductSellOrderRepository finalProductSellOrderRepository,
                             StorageProductRepository spRepo, TimeRepository timeRepository,
@@ -123,7 +124,7 @@ public class GameinTradeTasks {
             logRepository.save(log);
             try {
                 StorageProduct sp = TeamUtil.removeProductFromStorage(
-                        order.getSubmitter(), order.getProduct(), order.getSoldQuantity(),spRepo
+                        order.getSubmitter(), order.getProduct(), order.getSoldQuantity(), spRepo
                 );
                 TeamUtil.removeProductFromBlocked(sp, order.getQuantity());
                 spRepo.save(sp);
@@ -143,33 +144,33 @@ public class GameinTradeTasks {
         int fifthEraDemand = 0;
 
         if (firstTime != null) {
-            int timePassed = (int) ((new Date().getTime() - firstTime.getTime()) / (1 * 60 * 1000));
+            long timePassed = Duration.between(firstTime, LocalDateTime.now(ZoneOffset.UTC)).toMinutes() / 5;
             while (timePassed != 0) {
-                firstEraDemand *= 0.99; // TODO change this to a better function
+                firstEraDemand *= Math.pow(0.97, 0.35 * timePassed);
                 timePassed -= 1;
             }
             secondEraDemand = totalDemand - firstEraDemand;
         }
         if (secondTime != null) {
-            int timePassed = (int) ((new Date().getTime() - secondTime.getTime()) / (1 * 60 * 1000));
+            long timePassed = Duration.between(secondTime, LocalDateTime.now(ZoneOffset.UTC)).toMinutes() / 5; //
             while (timePassed != 0) {
-                secondEraDemand *= 0.99; // TODO change this to a better function
+                secondEraDemand *= Math.pow(0.92, 0.1 * timePassed);
                 timePassed -= 1;
             }
             thirdEraDemand = totalDemand - secondEraDemand - firstEraDemand;
         }
         if (thirdTime != null) {
-            int timePassed = (int) ((new Date().getTime() - thirdTime.getTime()) / (1 * 60 * 1000));
+            long timePassed = Duration.between(thirdTime, LocalDateTime.now(ZoneOffset.UTC)).toMinutes() / 5;
             while (timePassed != 0) {
-                thirdEraDemand *= 0.99; // TODO change this to a better function
+                thirdEraDemand *= Math.pow(0.92, 0.1 * timePassed);
                 timePassed -= 1;
             }
             fourthEraDemand = totalDemand - thirdEraDemand - secondEraDemand - firstEraDemand;
         }
         if (fourthTime != null) {
-            int timePassed = (int) ((new Date().getTime() - fourthTime.getTime()) / (1 * 60 * 1000));
+            long timePassed = Duration.between(fourthTime, LocalDateTime.now(ZoneOffset.UTC)).toMinutes() / 5; //
             while (timePassed != 0) {
-                fourthEraDemand *= 0.99; // TODO change this to a better function
+                fourthEraDemand *= Math.pow(0.92, 0.1 * timePassed);
                 timePassed -= 1;
             }
             fifthEraDemand = totalDemand - fourthEraDemand - thirdEraDemand - secondEraDemand - firstEraDemand;

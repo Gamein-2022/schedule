@@ -39,11 +39,13 @@ public class ScheduleService {
     private final OrderRepository orderRepository;
     private final OfferRepository offerRepository;
     private final DemandLogRepository demandLogRepository;
+    private final BuildingRepository buildingRepository;
+    private final BuildingInfoRepository buildingInfoRepository;
 
     @Value("${live.data.url}")
     private String liveUrl;
 
-    public ScheduleService(TimeRepository timeRepository, TeamRepository teamRepository, TeamResearchRepository teamResearchRepository, FinalProductSellOrderRepository finalProductSellOrderRepository, ProductRepository productRepository, DemandRepository demandRepository, RegionRepository regionRepository, LogRepository logRepository, StorageProductRepository storageProductRepository, OrderRepository orderRepository, OfferRepository offerRepository, DemandLogRepository demandLogRepository) {
+    public ScheduleService(TimeRepository timeRepository, TeamRepository teamRepository, TeamResearchRepository teamResearchRepository, FinalProductSellOrderRepository finalProductSellOrderRepository, ProductRepository productRepository, DemandRepository demandRepository, RegionRepository regionRepository, LogRepository logRepository, StorageProductRepository storageProductRepository, OrderRepository orderRepository, OfferRepository offerRepository, DemandLogRepository demandLogRepository, BuildingRepository buildingRepository, BuildingInfoRepository buildingInfoRepository) {
         this.timeRepository = timeRepository;
         this.teamRepository = teamRepository;
         this.teamResearchRepository = teamResearchRepository;
@@ -56,13 +58,17 @@ public class ScheduleService {
         this.orderRepository = orderRepository;
         this.offerRepository = offerRepository;
         this.demandLogRepository = demandLogRepository;
+        this.buildingRepository = buildingRepository;
+        this.buildingInfoRepository = buildingInfoRepository;
     }
 
     @Transactional
     @Scheduled(fixedDelay = 240, timeUnit = TimeUnit.SECONDS)
     public void storageCost() {
         Time time = timeRepository.findById(1L).get();
-        if (!time.getIsGamePaused() && time.getIsRegionPayed()) {
+        if (time.getIsGamePaused()) return;
+
+        if (time.getIsRegionPayed()) {
             List<Team> allTeams = teamRepository.findAll();
             TimeResultDTO timeResultDTO = TimeUtil.getTime(time);
             for (Team team : allTeams) {
@@ -94,25 +100,25 @@ public class ScheduleService {
     }
 
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
-    public void buyFinalProducts() {
+    private void buyFinalProducts() {
+        Time time = timeRepository.findById(1L).get();
+        if (time.getIsGamePaused()) return;
+
         try {
-            System.out.println("scheduled task");
-            Time time = timeRepository.findById(1L).get();
+            System.out.println("final product orders task now commencing:\n");
             LocalDateTime nextTime = LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5);
             time.setNextFinalOrderTime(nextTime);
             timeRepository.save(time);
 
             long fiveMinutesFromBeginning =
-                    (Duration.ofSeconds(
-                            Duration.between(time.getBeginTime(), LocalDateTime.now(ZoneOffset.UTC)).toSeconds() - time.getStoppedTimeSeconds()
-                    ).toMinutes() / 5) * 5;
+                    (TimeUtil.getTime(time).getDurationMillis() / (5 * 60 * 1000)) * 5;
             List<FinalProductSellOrder> orders =
                     finalProductSellOrderRepository.findAllByClosedIsFalseAndCancelledIsFalse();
             List<Product> products = productRepository.findAllByLevelBetween(3, 3);
-            TeamResearch first = teamResearchRepository.findFirstBySubject_IdOrderByEndTime(11L);
-            TeamResearch second = teamResearchRepository.findFirstBySubject_IdOrderByEndTime(12L);
-            TeamResearch third = teamResearchRepository.findFirstBySubject_IdOrderByEndTime(13L);
-            TeamResearch fourth = teamResearchRepository.findFirstBySubject_IdOrderByEndTime(14L);
+            TeamResearch first = teamResearchRepository.findFirstBySubject_IdAndEndTimeIsBeforeOrderByEndTime(11L, LocalDateTime.now(ZoneOffset.UTC));
+            TeamResearch second = teamResearchRepository.findFirstBySubject_IdAndEndTimeIsBeforeOrderByEndTime(12L, LocalDateTime.now(ZoneOffset.UTC));
+            TeamResearch third = teamResearchRepository.findFirstBySubject_IdAndEndTimeIsBeforeOrderByEndTime(13L, LocalDateTime.now(ZoneOffset.UTC));
+            TeamResearch fourth = teamResearchRepository.findFirstBySubject_IdAndEndTimeIsBeforeOrderByEndTime(14L, LocalDateTime.now(ZoneOffset.UTC));
             Optional<Demand> demandOptional = demandRepository.findById(fiveMinutesFromBeginning);
             if (demandOptional.isEmpty()) {
                 System.err.printf("Demand %d not found!\n", fiveMinutesFromBeginning);
@@ -139,7 +145,10 @@ public class ScheduleService {
     }
 
     @Scheduled(fixedDelay = 3, timeUnit = TimeUnit.MINUTES)
-    public void tradeOffers() {
+    private void tradeOffers() {
+        Time time = timeRepository.findById(1L).get();
+        if (time.getIsGamePaused()) return;
+
         Optional<Team> teamOptional = teamRepository.findById(0L);
         if (teamOptional.isEmpty()) {
             System.err.println("gamein team not found!");
@@ -159,9 +168,26 @@ public class ScheduleService {
         teamRepository.save(gamein);
     }
 
+    @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.MINUTES)
+    private void saveTeamsWealth() {
+        Time time = timeRepository.findById(1L).get();
+        if (time.getIsGamePaused()) return;
+
+        for (Team team : teamRepository.findAll()) {
+            WealthLog log = new WealthLog();
+            log.setTeam(team);
+            log.setWealth(getTeamWealth(team, storageProductRepository, buildingRepository, buildingInfoRepository));
+            log.setTime(LocalDateTime.now(ZoneOffset.UTC));
+            log.setTenMinuteRound(TimeUtil.getTime(time).getDurationMillis() / (10 * 60 * 1000));
+        }
+    }
+
     @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.SECONDS)
     public void payRegionPrice() {
         Time time = timeRepository.findById(1L).get();
+        if (time.getIsRegionPayed()) return;
+        if (time.getIsGamePaused()) return;
+
         Long duration = Duration.between(time.getBeginTime(), LocalDateTime.now(ZoneOffset.UTC)).toSeconds();
         boolean isChooseRegionFinished = duration - time.getStoppedTimeSeconds() > time.getChooseRegionDuration();
         if (!time.getIsRegionPayed() && isChooseRegionFinished) {
@@ -196,6 +222,21 @@ public class ScheduleService {
             String text = "هزینه زمین از حساب شما برداشت شد.";
             RestUtil.sendNotificationToAll(text, "UPDATE_BALANCE", liveUrl);
         }
+    }
+
+    private Long getTeamWealth(Team team, StorageProductRepository storageProductRepository,
+                               BuildingRepository buildingRepository, BuildingInfoRepository buildingInfoRepository) {
+        long wealth = 0L;
+        List<StorageProduct> teamsProduct = storageProductRepository.findAllByTeamId(team.getId());
+        for (StorageProduct storageProduct : teamsProduct) {
+            wealth += (long) storageProduct.getProduct().getPrice() * storageProduct.getInStorageAmount();
+        }
+        List<Building> teamBuildings = buildingRepository.findAllByTeamId(team.getId());
+        for (Building building : teamBuildings) {
+            wealth += buildingInfoRepository.findById(building.getType()).orElseGet(BuildingInfo::new).getBuildPrice();
+        }
+        wealth += team.getBalance();
+        return wealth;
     }
 
     private Long calculateRegionPrice(Long currentPopulation) {
