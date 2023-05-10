@@ -10,7 +10,7 @@ jobs:
 
   build-schedule:
     #needs: check-code
-    runs-on: [app]
+    runs-on: [app-2]
     steps:
       - uses: actions/checkout@master
       - run: |
