@@ -1,5 +1,6 @@
 package gamein2.schedule.service;
 
+import gamein2.schedule.model.dto.RegionDTO;
 import gamein2.schedule.model.dto.TimeResultDTO;
 import gamein2.schedule.model.entity.*;
 import gamein2.schedule.model.enums.LogType;
@@ -177,23 +178,27 @@ public class ScheduleService {
         Long duration =  Duration.between(time.getBeginTime(),LocalDateTime.now(ZoneOffset.UTC)).toSeconds();
         boolean isChooseRegionFinished = duration - time.getStoppedTimeSeconds() > time.getChooseRegionDuration();
         if (! time.getIsRegionPayed() && isChooseRegionFinished){
-            List<Region> regions = regionRepository.findAll();
+            /*List<Region> regions = regionRepository.findAll();*/
+            Map<Integer,Long> regionsPopulation = RegionDTO.getRegionsPopulation(teamRepository.getRegionsPopulation());
             List<Team> teams = teamRepository.findAll();
             for (Team team : teams){
                 if (team.getRegion() == 0){
                     Random random = new Random();
                     team.setRegion(random.nextInt(8) + 1);
-                    Region region = regions.get(team.getRegion() - 1);
-                    region.setRegionPopulation(region.getRegionPopulation() + 1);
+                    regionsPopulation.put(team.getRegion(),regionsPopulation.get(team.getRegion()) + 1);
                 }
             }
-            for (Region region: regions){
-                region.setRegionPayed(calculateRegionPrice(region.getRegionPopulation()));
+            Map<Long,Long> regionsPrice = new HashMap<>();
+            for (Integer regionId: regionsPopulation.keySet()){
+                Region region = regionRepository.findFirstByRegionId(Long.valueOf(regionId));
+                Long price = calculateRegionPrice(regionsPopulation.get(regionId));
+                regionsPrice.put(Long.valueOf(regionId),price);
+                region.setRegionPayed(price);
+                regionRepository.save(region);
             }
             for (Team team : teams){
-                team.setBalance(team.getBalance() - regions.get(team.getRegion() - 1).getRegionPayed());
+                team.setBalance(team.getBalance() - regionsPrice.get((long)team.getRegion()));
             }
-            regionRepository.saveAll(regions);
             teamRepository.saveAll(teams);
             time.setIsRegionPayed(true);
             timeRepository.save(time);
