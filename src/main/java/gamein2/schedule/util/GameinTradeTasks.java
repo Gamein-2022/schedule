@@ -4,12 +4,10 @@ import gamein2.schedule.exception.BadRequestException;
 import gamein2.schedule.model.dto.TimeResultDTO;
 import gamein2.schedule.model.entity.*;
 import gamein2.schedule.model.enums.LogType;
-import gamein2.schedule.model.repository.FinalProductSellOrderRepository;
-import gamein2.schedule.model.repository.LogRepository;
-import gamein2.schedule.model.repository.StorageProductRepository;
-import gamein2.schedule.model.repository.TimeRepository;
+import gamein2.schedule.model.repository.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -20,7 +18,6 @@ public class GameinTradeTasks {
 
     private final LogRepository logRepository;
     private final HashMap<Long, Integer> demands = new HashMap<>();
-    private final HashMap<Long, Double> brands = new HashMap<>();
     private final int totalDemand;
     private final Date firstTime;
     private final Date secondTime;
@@ -28,19 +25,18 @@ public class GameinTradeTasks {
     private final Date fourthTime;
     private final List<Product> products;
     private final List<FinalProductSellOrder> orders;
-    private final List<Team> teams;
     private final FinalProductSellOrderRepository finalProductSellOrderRepository;
     private final StorageProductRepository spRepo;
-    private HashMap<Long, Double> prevBrandsMap = null;
-    private HashMap<Long, Double> prevPrevBrandsMap = null;
-
     private final TimeRepository timeRepository;
+    private final DemandLogRepository demandLogRepository;
+    private final Long fiveMinutesFromBeginning;
 
-    public GameinTradeTasks(List<Brand> previousBrands, List<Brand> previousPreviousBrands, LogRepository logRepository, int totalDemand,
+    public GameinTradeTasks(LogRepository logRepository, int totalDemand,
                             Date firstTime, Date secondTime, Date thirdTime, Date fourthTime, List<Product> products,
-                            List<FinalProductSellOrder> orders, List<Team> teams,
+                            List<FinalProductSellOrder> orders,
                             FinalProductSellOrderRepository finalProductSellOrderRepository,
-                            StorageProductRepository spRepo, TimeRepository timeRepository) {
+                            StorageProductRepository spRepo, TimeRepository timeRepository,
+                            DemandLogRepository demandLogRepository, Long fiveMinutesFromBeginning) {
         this.logRepository = logRepository;
         this.totalDemand = totalDemand;
         this.firstTime = firstTime;
@@ -49,28 +45,15 @@ public class GameinTradeTasks {
         this.fourthTime = fourthTime;
         this.products = products;
         this.orders = orders;
-        this.teams = teams;
         this.finalProductSellOrderRepository = finalProductSellOrderRepository;
         this.spRepo = spRepo;
         this.timeRepository = timeRepository;
-
-        if (previousPreviousBrands.size() > 0) {
-            prevPrevBrandsMap = new HashMap<>();
-            for (Brand brand : previousBrands) {
-                prevPrevBrandsMap.put(brand.getTeam().getId(), brand.getBrand());
-            }
-        }
-        if (previousBrands.size() > 0) {
-            prevBrandsMap = new HashMap<>();
-            for (Brand brand : previousBrands) {
-                prevBrandsMap.put(brand.getTeam().getId(), brand.getBrand());
-            }
-        }
+        this.demandLogRepository = demandLogRepository;
+        this.fiveMinutesFromBeginning = fiveMinutesFromBeginning;
     }
 
-    public HashMap<Long, Double> run() {
+    public void run() {
         calculateDemands();
-        calculateBrands();
         for (Product product : products) {
             divideDemandByProduct(
                     orders.stream()
@@ -78,19 +61,18 @@ public class GameinTradeTasks {
                             .collect(Collectors.toList()), product
             );
         }
-        return brands;
     }
 
     public void divideDemandByProduct(List<FinalProductSellOrder> orders,
                                       Product product) {
         Time time = timeRepository.findById(1L).get();
         int demand = demands.get(product.getId());
+        int demandToDivide = demand;
         int totalSold = 0;
         double totalBrandOnPrice;
         List<Double> brandOnPrices = new ArrayList<>();
         for (FinalProductSellOrder order : orders) {
-            double brand = brands.get(order.getSubmitter().getId());
-            double brandOnPrice = brand / order.getQuantity();
+            double brandOnPrice = 100.0 / order.getUnitPrice();
             brandOnPrices.add(brandOnPrice);
         }
         while (true) {
@@ -105,7 +87,7 @@ public class GameinTradeTasks {
                 // skip completed orders
                 if (orders.get(i).getSoldQuantity().equals(orders.get(i).getQuantity())) continue;
 
-                int sellAmount = (int) Math.ceil((brandOnPrices.get(i) / totalBrandOnPrice) * demand);
+                int sellAmount = (int) Math.ceil((brandOnPrices.get(i) / totalBrandOnPrice) * demandToDivide);
                 FinalProductSellOrder order = orders.get(i);
                 if (sellAmount > order.getQuantity() - order.getSoldQuantity()) {
                     sellAmount = order.getQuantity() - order.getSoldQuantity();
@@ -118,7 +100,8 @@ public class GameinTradeTasks {
 
                 totalSold += sellAmount;
             }
-            if (totalSold >= demand ||
+            demandToDivide = demand - totalSold;
+            if (demandToDivide <= 0 ||
                     orders.stream().allMatch(order -> order.getSoldQuantity().equals(order.getQuantity()))) {
                 break;
             }
@@ -204,62 +187,22 @@ public class GameinTradeTasks {
         eraDemand.put(4688, fourthEraDemand);
         eraDemand.put(7425, fifthEraDemand);
 
+        StringBuilder productDemands = new StringBuilder();
         for (Product p : products) {
             demands.put(p.getId(), (int) (p.getDemandCoefficient() * eraDemand.get(p.getAvailableDay())));
+            productDemands.append(p.getPrettyName()).append(": ").append(p.getDemandCoefficient() * eraDemand.get(p.getAvailableDay())).append(";\n");
             System.out.println("demand for " + p.getName() + " is: " + (int) (p.getDemandCoefficient() * eraDemand.get(p.getAvailableDay())));
         }
+        DemandLog log = new DemandLog();
+        log.setTotalDemand(totalDemand);
+        log.setFirstEraDemand(firstEraDemand);
+        log.setSecondEraDemand(secondEraDemand);
+        log.setThirdEraDemand(thirdEraDemand);
+        log.setFourthEraDemand(fourthEraDemand);
+        log.setFifthEraDemand(fifthEraDemand);
+        log.setProductDemands(productDemands.toString());
+        log.setTime(LocalDateTime.now(ZoneOffset.UTC));
+        log.setDemandId(fiveMinutesFromBeginning);
+        demandLogRepository.save(log);
     }
-
-    private void calculateBrands() {
-//        double alpha = -1.0;
-//        double betta = -1.0;
-//        double theta = 1.0;
-//        double lambda = 1.0;
-//
-//        HashMap<Long, Double> formulae = new HashMap<>();
-//        double sumFormulae = 0;
-//        for (Team team : teams) {
-//            Long totalSellAmount = finalProductSellOrderRepository.totalSoldAmount(team.getId());
-//            if (totalSellAmount == null) totalSellAmount = 0L;
-//            double formula =
-//                    alpha * Math.pow(getCarbonFootprint(), lambda) +
-//                            betta * calculateSecondBrandFactor(team.getId(), totalSellAmount) +
-//                            theta * totalSellAmount;
-//            formulae.put(team.getId(), formula);
-//            sumFormulae += formula;
-//        }
-        for (Team team : teams) {
-            brands.put(team.getId(), 50.0);
-        }
-    }
-
-//    private double calculateSecondBrandFactor(Long teamId, Long totalSellAmount) {
-//        double result = 0;
-//        for (Long productId : finalProductSellOrderRepository.findProduct_IdsByTeam_Id(teamId)) {
-//            double deltaBrand = meanDeltaBrand(productId);
-//            if (deltaBrand == 0) {
-//                continue;
-//            }
-//            Long sellAmount = finalProductSellOrderRepository.totalProductSoldAmount(teamId, productId);
-//            if (sellAmount == null) sellAmount = 0L;
-//            result += ((double) sellAmount / totalSellAmount) * deltaBrand;
-//        }
-//        return result;
-//    }
-//
-//    private double meanDeltaBrand(Long productId) {
-//        if (prevBrandsMap == null || prevPrevBrandsMap == null) {
-//            return 0;
-//        }
-//        List<Long> teamIds = finalProductSellOrderRepository.findTeam_IdsByProduct_Id(productId);
-//        double sumDeltaBrand = 0;
-//        for (Long teamId : teamIds) {
-//            sumDeltaBrand += prevBrandsMap.get(teamId) - prevPrevBrandsMap.get(teamId);
-//        }
-//        return sumDeltaBrand / teamIds.size();
-//    }
-
-//    private int getCarbonFootprint() {
-//        return 50;
-//    }
 }

@@ -13,8 +13,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import javax.transaction.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -32,29 +32,29 @@ public class ScheduleService {
     private final FinalProductSellOrderRepository finalProductSellOrderRepository;
     private final ProductRepository productRepository;
     private final DemandRepository demandRepository;
-    private final BrandRepository brandRepository;
     private final RegionRepository regionRepository;
     private final LogRepository logRepository;
     private final StorageProductRepository storageProductRepository;
     private final OrderRepository orderRepository;
     private final OfferRepository offerRepository;
+    private final DemandLogRepository demandLogRepository;
 
     @Value("${live.data.url}")
     private String liveUrl;
 
-    public ScheduleService(TimeRepository timeRepository, TeamRepository teamRepository, TeamResearchRepository teamResearchRepository, FinalProductSellOrderRepository finalProductSellOrderRepository, ProductRepository productRepository, DemandRepository demandRepository, BrandRepository brandRepository, RegionRepository regionRepository, LogRepository logRepository, StorageProductRepository storageProductRepository, OrderRepository orderRepository, OfferRepository offerRepository) {
+    public ScheduleService(TimeRepository timeRepository, TeamRepository teamRepository, TeamResearchRepository teamResearchRepository, FinalProductSellOrderRepository finalProductSellOrderRepository, ProductRepository productRepository, DemandRepository demandRepository, RegionRepository regionRepository, LogRepository logRepository, StorageProductRepository storageProductRepository, OrderRepository orderRepository, OfferRepository offerRepository, DemandLogRepository demandLogRepository) {
         this.timeRepository = timeRepository;
         this.teamRepository = teamRepository;
         this.teamResearchRepository = teamResearchRepository;
         this.finalProductSellOrderRepository = finalProductSellOrderRepository;
         this.productRepository = productRepository;
         this.demandRepository = demandRepository;
-        this.brandRepository = brandRepository;
         this.regionRepository = regionRepository;
         this.logRepository = logRepository;
         this.storageProductRepository = storageProductRepository;
         this.orderRepository = orderRepository;
         this.offerRepository = offerRepository;
+        this.demandLogRepository = demandLogRepository;
     }
 
     @Transactional
@@ -119,29 +119,16 @@ public class ScheduleService {
             }
             Demand demand = demandOptional.get();
 
-            List<Team> teams = teamRepository.findAll();
-            List<Brand> previousBrands = brandRepository.findAllByPeriod(fiveMinutesFromBeginning - 1);
-            List<Brand> previousPreviousBrands = brandRepository.findAllByPeriod(fiveMinutesFromBeginning - 2);
-
-            HashMap<Long, Double> newBrandsMap = new GameinTradeTasks(
-                    previousBrands, previousPreviousBrands, logRepository, demand.getDemand(),
+            new GameinTradeTasks(
+                    logRepository, demand.getDemand(),
                     first != null ? first.getEndTime() : null,
                     second != null ? second.getEndTime() : null,
                     third != null ? third.getEndTime() : null,
                     fourth != null ? fourth.getEndTime() : null,
                     products,
                     orders,
-                    teams,
-                    finalProductSellOrderRepository, storageProductRepository, timeRepository).run();
-            List<Brand> newBrands = new ArrayList<>();
-            for (Map.Entry<Long, Double> brand : newBrandsMap.entrySet()) {
-                Brand b = new Brand();
-                b.setTeam(teamRepository.findById(brand.getKey()).get());
-                b.setBrand(brand.getValue());
-                b.setPeriod(fiveMinutesFromBeginning);
-                newBrands.add(b);
-            }
-            brandRepository.saveAll(newBrands);
+                    finalProductSellOrderRepository, storageProductRepository, timeRepository, demandLogRepository,
+                    fiveMinutesFromBeginning).run();
             finalProductSellOrderRepository.saveAll(orders);
             teamRepository.saveAll(orders.stream().map(FinalProductSellOrder::getSubmitter).collect(Collectors.toList()));
         } catch (Exception e) {
@@ -208,5 +195,4 @@ public class ScheduleService {
         Integer teamsCount = teamRepository.getCount();
         return (long) ((1 + (2.25 / (0.8 + 9 * Math.exp(-0.8 * (16 * currentPopulation / (teamsCount - 0.26)))))) * scale);
     }
-
 }
