@@ -41,11 +41,12 @@ public class ScheduleService {
     private final DemandLogRepository demandLogRepository;
     private final BuildingRepository buildingRepository;
     private final BuildingInfoRepository buildingInfoRepository;
+    private final WealthLogRepository wealthLogRepository;
 
     @Value("${live.data.url}")
     private String liveUrl;
 
-    public ScheduleService(TimeRepository timeRepository, TeamRepository teamRepository, TeamResearchRepository teamResearchRepository, FinalProductSellOrderRepository finalProductSellOrderRepository, ProductRepository productRepository, DemandRepository demandRepository, RegionRepository regionRepository, LogRepository logRepository, StorageProductRepository storageProductRepository, OrderRepository orderRepository, OfferRepository offerRepository, DemandLogRepository demandLogRepository, BuildingRepository buildingRepository, BuildingInfoRepository buildingInfoRepository) {
+    public ScheduleService(TimeRepository timeRepository, TeamRepository teamRepository, TeamResearchRepository teamResearchRepository, FinalProductSellOrderRepository finalProductSellOrderRepository, ProductRepository productRepository, DemandRepository demandRepository, RegionRepository regionRepository, LogRepository logRepository, StorageProductRepository storageProductRepository, OrderRepository orderRepository, OfferRepository offerRepository, DemandLogRepository demandLogRepository, BuildingRepository buildingRepository, BuildingInfoRepository buildingInfoRepository, WealthLogRepository wealthLogRepository) {
         this.timeRepository = timeRepository;
         this.teamRepository = teamRepository;
         this.teamResearchRepository = teamResearchRepository;
@@ -60,6 +61,7 @@ public class ScheduleService {
         this.demandLogRepository = demandLogRepository;
         this.buildingRepository = buildingRepository;
         this.buildingInfoRepository = buildingInfoRepository;
+        this.wealthLogRepository = wealthLogRepository;
     }
 
     @Transactional
@@ -100,7 +102,7 @@ public class ScheduleService {
     }
 
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
-    private void buyFinalProducts() {
+    public void buyFinalProducts() {
         Time time = timeRepository.findById(1L).get();
         if (time.getIsGamePaused()) return;
 
@@ -145,7 +147,7 @@ public class ScheduleService {
     }
 
     @Scheduled(fixedDelay = 3, timeUnit = TimeUnit.MINUTES)
-    private void tradeOffers() {
+    public void tradeOffers() {
         Time time = timeRepository.findById(1L).get();
         if (time.getIsGamePaused()) return;
 
@@ -169,7 +171,7 @@ public class ScheduleService {
     }
 
     @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.MINUTES)
-    private void saveTeamsWealth() {
+    public void saveTeamsWealth() {
         Time time = timeRepository.findById(1L).get();
         if (time.getIsGamePaused()) return;
 
@@ -179,6 +181,7 @@ public class ScheduleService {
             log.setWealth(getTeamWealth(team, storageProductRepository, buildingRepository, buildingInfoRepository));
             log.setTime(LocalDateTime.now(ZoneOffset.UTC));
             log.setTenMinuteRound(TimeUtil.getTime(time).getDurationMillis() / (10 * 60 * 1000));
+            wealthLogRepository.save(log);
         }
     }
 
