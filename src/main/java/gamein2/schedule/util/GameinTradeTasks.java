@@ -123,10 +123,10 @@ public class GameinTradeTasks {
                     34));
             logRepository.save(log);
             try {
-                StorageProduct sp = TeamUtil.removeProductFromStorage(
-                        order.getSubmitter(), order.getProduct(), order.getSoldQuantity(), spRepo
-                );
-                TeamUtil.removeProductFromBlocked(sp, order.getQuantity());
+                StorageProduct sp = TeamUtil.getSPFromProduct(order.getSubmitter(), order.getProduct(), spRepo);
+                sp.setInStorageAmount(sp.getInStorageAmount() - order.getSoldQuantity());
+                sp.setBlockedAmount(sp.getBlockedAmount() - order.getQuantity());
+                sp.setSellableAmount(sp.getSellableAmount() - order.getSoldQuantity());
                 spRepo.save(sp);
             } catch (BadRequestException e) {
                 System.err.println(e.getMessage());
