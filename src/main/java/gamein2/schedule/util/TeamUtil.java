@@ -93,7 +93,7 @@ public class TeamUtil {
                                                           StorageProductRepository storageProductRepository)
             throws BadRequestException {
         StorageProduct sp = getSPFromProduct(team, product, storageProductRepository);
-        if (sp.getInStorageAmount() - sp.getBlockedAmount() < amount) {
+        if (sp.getInStorageAmount() < amount) {
             throw new BadRequestException("شما مقدار کافی " + product.getName() + " ندارید!");
         }
 
