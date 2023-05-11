@@ -197,6 +197,11 @@ public class ScheduleService {
         if (!time.getIsRegionPayed() && isChooseRegionFinished) {
             /*List<Region> regions = regionRepository.findAll();*/
             Map<Integer, Long> regionsPopulation = RegionDTO.getRegionsPopulation(teamRepository.getRegionsPopulation());
+            for (int i = 1; i < 9 ; i ++){
+                if (!regionsPopulation.containsKey(i))
+                    regionsPopulation.put(i,0L);
+            }
+
             List<Team> teams = teamRepository.findAll();
             for (Team team : teams) {
                 if (team.getRegion() == 0) {
@@ -205,10 +210,7 @@ public class ScheduleService {
                     regionsPopulation.put(team.getRegion(), regionsPopulation.get(team.getRegion()) + 1);
                 }
             }
-            for (int i = 1; i < 9 ; i ++){
-                if (!regionsPopulation.containsKey(i))
-                    regionsPopulation.put(i,0L);
-            }
+
             Map<Long, Long> regionsPrice = new HashMap<>();
             for (int i = 1; i < 9; i++) {
                 Region region = regionRepository.findFirstByRegionId(i);
