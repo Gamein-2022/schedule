@@ -74,6 +74,7 @@ public class ScheduleService {
             List<Team> allTeams = teamRepository.findAll();
             TimeResultDTO timeResultDTO = TimeUtil.getTime(time);
             for (Team team : allTeams) {
+                if (team.getId().equals(0L)) continue;
                 long cost = 0L;
                 List<StorageProduct> teamProducts = storageProductRepository.findAllByTeamId(team.getId());
                 for (StorageProduct storageProduct : teamProducts) {
