@@ -13,7 +13,7 @@ services:
     networks:
       - gamein
     environment:
-      - spring.datasource.url=jdbc:postgresql://192.168.0.223:5432/gamein
+      - spring.datasource.url=jdbc:postgresql://192.168.0.223:5432/gamein2022
       - spring.datasource.username=gamein
       - spring.datasource.password=gamein123
       - live.data.url=http://192.168.0.222:8083/websocket/api/notify
