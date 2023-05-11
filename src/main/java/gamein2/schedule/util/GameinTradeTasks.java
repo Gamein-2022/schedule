@@ -137,7 +137,7 @@ public class GameinTradeTasks {
     }
 
     private void calculateDemands() {
-        int firstEraDemand = (int) (totalDemand * timeRepository.findById(1L).get().getDemandScale());
+        int firstEraDemand = totalDemand;
         int secondEraDemand = 0;
         int thirdEraDemand = 0;
         int fourthEraDemand = 0;

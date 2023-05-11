@@ -58,9 +58,6 @@ public class Time {
     @Column(name = "scale", nullable = false, columnDefinition = "bigint default 0.25")
     private Long scale = 1000000L;
 
-    @Column(name = "demand_scale", nullable = false, columnDefinition = "double precision default 1.0")
-    private Double demandScale = 1.0;
-
     @Column(name = "storage_base_capacity", nullable = false, columnDefinition = "integer default 50000000")
     private Integer storageBaseCapacity = 50000000;
 
