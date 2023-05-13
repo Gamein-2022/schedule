@@ -152,7 +152,7 @@ public class ScheduleService {
         }
     }
 
-    @Scheduled(fixedDelay = 3, timeUnit = TimeUnit.MINUTES)
+    /*@Scheduled(fixedDelay = 3, timeUnit = TimeUnit.MINUTES)
     public void tradeOffers() {
         Time time = timeRepository.findById(1L).get();
         if (time.getIsGamePaused()) return;
@@ -174,7 +174,7 @@ public class ScheduleService {
         }
         gamein.setRegion(new Random().nextInt(8) + 1);
         teamRepository.save(gamein);
-    }
+    }*/
 
     @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.MINUTES)
     public void saveTeamsWealth() {
