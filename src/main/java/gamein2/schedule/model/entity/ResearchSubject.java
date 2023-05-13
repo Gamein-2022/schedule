@@ -1,6 +1,8 @@
 package gamein2.schedule.model.entity;
 
 import gamein2.schedule.model.dto.ResearchSubjectDTO;
+import gamein2.schedule.model.enums.BuildingType;
+import gamein2.schedule.model.enums.ProductGroup;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -31,6 +33,19 @@ public class ResearchSubject {
 
     @Column(name = "base_duration", nullable = false)
     private int baseDuration;
+
+    @Column(name = "price", nullable = false)
+    private int price;
+
+    @Column(name = "duration", nullable = false)
+    private int duration;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "related_product_group")
+    private ProductGroup productGroup;
+
+    @Column(name = "building_group")
+    private BuildingType buildingType;
 
     @ManyToOne
     private ResearchSubject durationBound;

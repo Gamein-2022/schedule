@@ -78,4 +78,10 @@ public class Time {
 
     @Column(name = "demand_multiplier", nullable = false, columnDefinition = "double precision default 1.0")
     private Double demandMultiplier;
+
+    @Column(name = "r_and_d_time_coeff", nullable = false, columnDefinition = "double precision default 0.4")
+    private Double rAndDTimeCoeff;
+
+    @Column(name = "r_and_d_rush", nullable = false, columnDefinition = "integer default 30")
+    private Integer rAndDRush;
 }
