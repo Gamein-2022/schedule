@@ -238,7 +238,6 @@ public class ScheduleService {
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
     public void calculateResearchCosts() {
         Time time = timeRepository.findById(1L).get();
-        if (time.getIsGamePaused()) return;
 
         List<ResearchSubject> subjects = researchSubjectRepository.findAll();
         for (ResearchSubject subject : subjects) {
