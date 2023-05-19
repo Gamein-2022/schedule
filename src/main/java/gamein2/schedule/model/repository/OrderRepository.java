@@ -17,4 +17,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             "NOT IN (SELECT o2.id FROM Order AS o2 WHERE o2.product = o.product AND o2.acceptDate IS NULL AND o2.type" +
             " != o.type)")
     List<Order> allConvincingOrders(LocalDateTime time);
+
+    List<Order> findAllBySubmitDateBeforeAndCancelledIsFalseAndAcceptDateIsNull(LocalDateTime tenMinutesAgo);;
 }

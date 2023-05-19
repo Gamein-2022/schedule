@@ -84,4 +84,12 @@ public class Time {
 
     @Column(name = "r_and_d_rush", nullable = false, columnDefinition = "integer default 30")
     private Integer rAndDRush;
+
+    @Column(name = "r_and_d_price_multiplier_production", nullable = false, columnDefinition = "double precision " +
+            "default 1.2")
+    private Double rAndDPriceMultiplierProduction = 1.2;
+
+    @Column(name = "r_and_d_price_multiplier_assembly", nullable = false, columnDefinition = "double precision " +
+            "default 1.5")
+    private Double rAndDPriceMultiplierAssembly = 1.5;
 }

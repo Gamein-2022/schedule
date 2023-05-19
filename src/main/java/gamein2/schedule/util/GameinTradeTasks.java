@@ -1,10 +1,10 @@
 package gamein2.schedule.util;
 
-import gamein2.schedule.exception.BadRequestException;
 import gamein2.schedule.model.dto.TimeResultDTO;
 import gamein2.schedule.model.entity.*;
 import gamein2.schedule.model.enums.LogType;
 import gamein2.schedule.model.repository.*;
+
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -108,6 +108,8 @@ public class GameinTradeTasks {
             }
         }
         TimeResultDTO timeResultDTO = TimeUtil.getTime(time);
+        List<StorageProduct> sps = new ArrayList<>();
+        List<Log> logs = new ArrayList<>();
         orders.forEach(order -> {
             order.setClosed(true);
             Log log = new Log();
@@ -121,18 +123,21 @@ public class GameinTradeTasks {
                     Math.toIntExact(timeResultDTO.getDay()),
                     12,
                     34));
-            logRepository.save(log);
-            try {
-                StorageProduct sp = TeamUtil.getSPFromProduct(order.getSubmitter(), order.getProduct(), spRepo);
-                sp.setInStorageAmount(sp.getInStorageAmount() - order.getSoldQuantity());
-                sp.setBlockedAmount(sp.getBlockedAmount() - order.getQuantity());
-                sp.setSellableAmount(sp.getSellableAmount() - order.getSoldQuantity());
-                spRepo.save(sp);
-            } catch (BadRequestException e) {
-                System.err.println(e.getMessage());
-            }
+//            logRepository.save(log);
+            logs.add(log);
+            StorageProduct sp = TeamUtil.getSPFromProduct(order.getSubmitter(), order.getProduct()).get();
+//            sp.setInStorageAmount(sp.getInStorageAmount() - order.getSoldQuantity());
+//            sp.setBlockedAmount(sp.getBlockedAmount() - order.getQuantity());
+//            sp.setSellableAmount(sp.getSellableAmount() - order.getSoldQuantity());
+            TeamUtil.removeProductFromStorage(sp, order.getSoldQuantity());
+            TeamUtil.removeProductFromBlock(sp, order.getQuantity());
+            TeamUtil.addProductToSellable(sp, order.getQuantity() - order.getSoldQuantity());
+//            spRepo.save(sp);
+            sps.add(sp);
         });
 
+        logRepository.saveAll(logs);
+        spRepo.saveAll(sps);
         finalProductSellOrderRepository.saveAll(orders);
     }
 
@@ -175,17 +180,17 @@ public class GameinTradeTasks {
             }
             fifthEraDemand = totalDemand - fourthEraDemand - thirdEraDemand - secondEraDemand - firstEraDemand;
         }
-        HashMap<Integer, Integer> eraDemand = new HashMap<>();
+        HashMap<Long, Integer> eraDemand = new HashMap<>();
         System.out.println("first era demand: " + firstEraDemand);
         System.out.println("second era demand: " + secondEraDemand);
         System.out.println("third era demand: " + thirdEraDemand);
         System.out.println("fourth era demand: " + fourthEraDemand);
         System.out.println("fifth era demand: " + fifthEraDemand);
-        eraDemand.put(0, firstEraDemand);
-        eraDemand.put(1163, secondEraDemand);
-        eraDemand.put(2738, thirdEraDemand);
-        eraDemand.put(4688, fourthEraDemand);
-        eraDemand.put(7425, fifthEraDemand);
+        eraDemand.put(0L, firstEraDemand);
+        eraDemand.put(1163L, secondEraDemand);
+        eraDemand.put(2738L, thirdEraDemand);
+        eraDemand.put(4688L, fourthEraDemand);
+        eraDemand.put(7425L, fifthEraDemand);
 
         StringBuilder productDemands = new StringBuilder();
         for (Product p : products) {

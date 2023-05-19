@@ -1,22 +1,26 @@
 package gamein2.schedule.service;
 
+import gamein2.schedule.exception.BadRequestException;
 import gamein2.schedule.model.dto.RegionDTO;
 import gamein2.schedule.model.dto.TimeResultDTO;
 import gamein2.schedule.model.entity.*;
 import gamein2.schedule.model.enums.BuildingType;
 import gamein2.schedule.model.enums.LogType;
+import gamein2.schedule.model.enums.OrderType;
 import gamein2.schedule.model.enums.ShippingMethod;
 import gamein2.schedule.model.repository.*;
 import gamein2.schedule.util.GameinTradeTasks;
 import gamein2.schedule.util.RestUtil;
+import gamein2.schedule.util.TeamUtil;
 import gamein2.schedule.util.TimeUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
-import javax.transaction.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -24,7 +28,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import static gamein2.schedule.util.TeamUtil.getSPFromProduct;
 
 @Service
 @EnableScheduling
@@ -47,10 +52,18 @@ public class ScheduleService {
     private final WealthLogRepository wealthLogRepository;
     private final ResearchSubjectRepository researchSubjectRepository;
 
+    private final TeamDateRepository teamDateRepository;
+
     @Value("${live.data.url}")
     private String liveUrl;
 
-    public ScheduleService(TimeRepository timeRepository, TeamRepository teamRepository, TeamResearchRepository teamResearchRepository, FinalProductSellOrderRepository finalProductSellOrderRepository, ProductRepository productRepository, DemandRepository demandRepository, RegionRepository regionRepository, LogRepository logRepository, StorageProductRepository storageProductRepository, OrderRepository orderRepository, OfferRepository offerRepository, DemandLogRepository demandLogRepository, BuildingRepository buildingRepository, BuildingInfoRepository buildingInfoRepository, WealthLogRepository wealthLogRepository, ResearchSubjectRepository researchSubjectRepository) {
+
+
+
+
+
+
+    public ScheduleService(TimeRepository timeRepository, TeamRepository teamRepository, TeamResearchRepository teamResearchRepository, FinalProductSellOrderRepository finalProductSellOrderRepository, ProductRepository productRepository, DemandRepository demandRepository, RegionRepository regionRepository, LogRepository logRepository, StorageProductRepository storageProductRepository, OrderRepository orderRepository, OfferRepository offerRepository, DemandLogRepository demandLogRepository, BuildingRepository buildingRepository, BuildingInfoRepository buildingInfoRepository, WealthLogRepository wealthLogRepository, ResearchSubjectRepository researchSubjectRepository, TeamDateRepository teamDateRepository) {
         this.timeRepository = timeRepository;
         this.teamRepository = teamRepository;
         this.teamResearchRepository = teamResearchRepository;
@@ -67,21 +80,29 @@ public class ScheduleService {
         this.buildingInfoRepository = buildingInfoRepository;
         this.wealthLogRepository = wealthLogRepository;
         this.researchSubjectRepository = researchSubjectRepository;
+        this.teamDateRepository = teamDateRepository;
     }
 
-    @Transactional
-    @Scheduled(fixedDelay = 240, timeUnit = TimeUnit.SECONDS)
+    /*@Transactional
+    @Scheduled(initialDelay = 0,fixedDelay = 4, timeUnit = TimeUnit.MINUTES)
     public void storageCost() {
         Time time = timeRepository.findById(1L).get();
-        if (time.getIsGamePaused()) return;
+
 
         if (time.getIsRegionPayed()) {
+            System.out.println("--> Start calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
+            String text = "کارشناسان گیمین در حال محاسبه هزینه انبارداری شما می باشند. شکیبا باشید.\uD83C\uDF3C";
+            RestUtil.sendNotificationToAll(text,"WARNING",liveUrl);
+            teamDateRepository.updateAllTeamDateAll(LocalDateTime.now(ZoneOffset.UTC));
+            teamRepository.updateStorageCost(time.getScale());
             List<Team> allTeams = teamRepository.findAll();
+            System.out.println("calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
             TimeResultDTO timeResultDTO = TimeUtil.getTime(time);
+            System.out.println("calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
             for (Team team : allTeams) {
                 if (team.getId().equals(0L)) continue;
                 long cost = 0L;
-                List<StorageProduct> teamProducts = storageProductRepository.findAllByTeamId(team.getId());
+                List<StorageProduct> teamProducts = team.getStorageProducts();
                 for (StorageProduct storageProduct : teamProducts) {
                     long totalVolume = storageProduct.getInStorageAmount();
                     cost += totalVolume * storageProduct.getProduct().getMinPrice();
@@ -100,12 +121,17 @@ public class ScheduleService {
                             23));
                     logRepository.save(log);
 
-                }
+                } else
+                    team.setBalance(0);
             }
-            String text = "هزینه انبارداری این ماه از حساب شما برداشت شد.";
+            System.out.println("calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
+
+            text = "هزینه انبارداری این ماه از حساب شما برداشت شد. موفق باشید.";
             RestUtil.sendNotificationToAll(text, "UPDATE_BALANCE", liveUrl);
+
+            System.out.println("--> End calculating storage cost :" + LocalDateTime.now(ZoneOffset.UTC));
         }
-    }
+    }*/
 
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
     public void buyFinalProducts() {
@@ -113,7 +139,10 @@ public class ScheduleService {
         if (time.getIsGamePaused()) return;
 
         try {
-            System.out.println("final product orders task now commencing:\n");
+            teamDateRepository.updateAllTeamDate(LocalDateTime.now(ZoneOffset.UTC));
+            String text = "گیمین در حال خرید محصول نهایی می باشد.";
+            RestUtil.sendNotificationToAll(text, "WARNING", liveUrl);
+            System.out.println("final product orders task now commencing: " + LocalDateTime.now(ZoneOffset.UTC) + "\n");
             LocalDateTime nextTime = LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5);
             time.setNextFinalOrderTime(nextTime);
             timeRepository.save(time);
@@ -146,6 +175,7 @@ public class ScheduleService {
                     fiveMinutesFromBeginning).run();
             finalProductSellOrderRepository.saveAll(orders);
             teamRepository.saveAll(orders.stream().map(FinalProductSellOrder::getSubmitter).collect(Collectors.toList()));
+            System.out.println("final product orders end :" + LocalDateTime.now(ZoneOffset.UTC) + "\n");
         } catch (Exception e) {
             System.err.println("Error in scheduled task: trade service handler:");
             System.err.println(e.getMessage());
@@ -176,7 +206,8 @@ public class ScheduleService {
         teamRepository.save(gamein);
     }*/
 
-    @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.MINUTES)
+    @Scheduled(initialDelay = 2, fixedDelay = 10, timeUnit = TimeUnit.MINUTES)
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void saveTeamsWealth() {
         Time time = timeRepository.findById(1L).get();
         if (time.getIsGamePaused()) return;
@@ -184,14 +215,14 @@ public class ScheduleService {
         for (Team team : teamRepository.findAll()) {
             WealthLog log = new WealthLog();
             log.setTeam(team);
-            log.setWealth(getTeamWealth(team, storageProductRepository, buildingRepository, buildingInfoRepository));
+            log.setWealth(getTeamWealth(team.getId()));
             log.setTime(LocalDateTime.now(ZoneOffset.UTC));
             log.setTenMinuteRound(TimeUtil.getTime(time).getDurationMillis() / (10 * 60 * 1000));
             wealthLogRepository.save(log);
         }
     }
 
-    @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.SECONDS)
+   /* @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.SECONDS)
     public void payRegionPrice() {
         Time time = timeRepository.findById(1L).get();
         if (time.getIsRegionPayed()) return;
@@ -200,11 +231,11 @@ public class ScheduleService {
         Long duration = Duration.between(time.getBeginTime(), LocalDateTime.now(ZoneOffset.UTC)).toSeconds();
         boolean isChooseRegionFinished = duration - time.getStoppedTimeSeconds() > time.getChooseRegionDuration();
         if (!time.getIsRegionPayed() && isChooseRegionFinished) {
-            /*List<Region> regions = regionRepository.findAll();*/
+            List<Region> regions = regionRepository.findAll();
             Map<Integer, Long> regionsPopulation = RegionDTO.getRegionsPopulation(teamRepository.getRegionsPopulation());
-            for (int i = 1; i < 9 ; i ++){
+            for (int i = 1; i < 9; i++) {
                 if (!regionsPopulation.containsKey(i))
-                    regionsPopulation.put(i,0L);
+                    regionsPopulation.put(i, 0L);
             }
 
             List<Team> teams = teamRepository.findAll();
@@ -217,13 +248,15 @@ public class ScheduleService {
             }
 
             Map<Long, Long> regionsPrice = new HashMap<>();
+            List<Region> regions = new ArrayList<>();
             for (int i = 1; i < 9; i++) {
                 Region region = regionRepository.findFirstByRegionId(i);
                 Long price = calculateRegionPrice(regionsPopulation.get(i));
                 regionsPrice.put((long) i, price);
                 region.setRegionPayed(price);
-                regionRepository.save(region);
+                regions.add(region);
             }
+            regionRepository.saveAll(regions);
             for (Team team : teams) {
                 team.setBalance(team.getBalance() - regionsPrice.get((long) team.getRegion()));
             }
@@ -233,10 +266,25 @@ public class ScheduleService {
             String text = "هزینه زمین از حساب شما برداشت شد.";
             RestUtil.sendNotificationToAll(text, "UPDATE_BALANCE", liveUrl);
         }
+    }*/
+
+    @Scheduled(initialDelay = 13, fixedRate = 10, timeUnit = TimeUnit.MINUTES)
+    public void cancelPendingOrders() {
+        teamDateRepository.updateAllTeamDateAll(LocalDateTime.now(ZoneOffset.UTC));
+        String text = "کارگران انبار در حال انبارگردانی می باشند. شکیبا باشید.";
+        RestUtil.sendNotificationToAll(text, "WARNING", liveUrl);
+        List<Order> orders =
+                orderRepository.findAllBySubmitDateBeforeAndCancelledIsFalseAndAcceptDateIsNull(
+                        LocalDateTime.now(ZoneOffset.UTC).minusMinutes(10)
+                );
+        for (Order o : orders) {
+            cancelOrder(o);
+        }
     }
 
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
     public void calculateResearchCosts() {
+        System.out.println(LocalDateTime.now(ZoneOffset.UTC) + " => started calculating R&D");
         Time time = timeRepository.findById(1L).get();
 
         List<ResearchSubject> subjects = researchSubjectRepository.findAll();
@@ -250,60 +298,68 @@ public class ScheduleService {
             subject.setDuration(duration);
         }
         researchSubjectRepository.saveAll(subjects);
+        System.out.println(LocalDateTime.now(ZoneOffset.UTC) + " => done calculating R&D");
     }
 
-    private Stream<Team> getEligibleTeams(ResearchSubject subject, Stream<Team> teams) {
-        if (subject.getProductGroup() != null) {
-            return teams.filter(team -> {
-                for (Building building : team.getBuildings()) {
-                    for (FactoryLine line : building.getLines()) {
-                        if (line.getGroup() == subject.getProductGroup()) {
-                            return true;
-                        }
-                    }
-                }
-                return false;
-            });
-        } else {
-            return teams.filter(team -> {
-                for (Building building : team.getBuildings()) {
-                    if (building.getType() == subject.getBuildingType()) {
-                        return true;
-                    }
-                }
-                return false;
-            });
-        }
-    }
+//    public static Stream<Team> getEligibleTeams(ResearchSubject subject, Stream<Team> teams) {
+//        if (subject.getProductGroup() != null) {
+//            return teams.filter(team -> {
+//                for (Building building : team.getBuildings()) {
+//                    for (FactoryLine line : building.getLines()) {
+//                        if (line.getGroup() == subject.getProductGroup()) {
+//                            return true;
+//                        }
+//                    }
+//                }
+//                return false;
+//            });
+//        } else {
+//            return teams.filter(team -> {
+//                for (Building building : team.getBuildings()) {
+//                    if (building.getType() == subject.getBuildingType()) {
+//                        return true;
+//                    }
+//                }
+//                return false;
+//            });
+//        }
+//    }
 
     private int calculatePrice(ResearchSubject subject, Time time) {
-        double medianTeamBalance;
-        Stream<Team> teamsStream;
-        if (subject.getParent() == null) {
-            List<Team> teams = teamRepository.findAll();
-            teamsStream = getEligibleTeams(subject, teams.stream()
-                    .filter(t -> !teamResearchRepository.existsByTeam_IdAndSubject_Id(t.getId(), subject.getId())));
-        } else {
-            teamsStream =
-                    getEligibleTeams(subject, teamResearchRepository.findAllBySubject_IdAndEndTimeBefore(subject.getParent().getId(),
-                                    LocalDateTime.now(ZoneOffset.UTC)).stream().map(TeamResearch::getTeam)
-                            .filter(t -> !teamResearchRepository.existsByTeam_IdAndSubject_Id(t.getId(), subject.getId())));
-        }
-        List<Double> teamsBalances =
-                teamsStream.map(
-                        team -> (double) getTeamWealth(team, storageProductRepository, buildingRepository,
-                                buildingInfoRepository)
-                                - calculateBuildingsCost(team.getBuildings())
-                ).sorted().toList();
-        if (teamsBalances.size() == 0) {
-            return -1;
-        }
-        medianTeamBalance = teamsBalances.size() % 2 == 0 ?
-                (teamsBalances.get(teamsBalances.size() / 2 - 1) + teamsBalances.get(teamsBalances.size() / 2)) / 2 :
-                teamsBalances.get(teamsBalances.size() / 2);
-        double alpha = time.getRAndDPriceMultiplier();
+//        double medianTeamBalance;
+//        Stream<Team> teamsStream;
+//        if (subject.getParent() == null) {
+//            List<Team> teams = teamRepository.findAll();
+//            teamsStream = getEligibleTeams(subject, teams.stream()
+//                    .filter(t -> !teamResearchRepository.existsByTeam_IdAndSubject_Id(t.getId(), subject.getId())));
+//        } else {
+//            teamsStream =
+//                    getEligibleTeams(subject, teamResearchRepository.findAllBySubject_IdAndEndTimeBefore(subject.getParent().getId(),
+//                                    LocalDateTime.now(ZoneOffset.UTC)).stream().map(TeamResearch::getTeam)
+//                            .filter(t -> !teamResearchRepository.existsByTeam_IdAndSubject_Id(t.getId(), subject.getId())));
+//        }
+//        List<Double> teamsBalances =
+//                teamsStream.map(
+//                        team -> (double) getTeamWealth(team, storageProductRepository, buildingRepository,
+//                                buildingInfoRepository)
+//                                - calculateBuildingsCost(team.getBuildings())
+//                ).sorted().toList();
+//        if (teamsBalances.size() == 0) {
+//            return -1;
+//        }
+//        medianTeamBalance = teamsBalances.size() % 2 == 0 ?
+//                (teamsBalances.get(teamsBalances.size() / 2 - 1) + teamsBalances.get(teamsBalances.size() / 2)) / 2 :
+//                teamsBalances.get(teamsBalances.size() / 2);
 
-        return (int) (alpha * medianTeamBalance);
+        // new code
+        double avgTeamBalance = subject.getParent() != null ?
+                teamResearchRepository.avgTeamBalanceWithParent(subject.getParent().getId(), subject.getId(), subject.getBuildingType()) :
+                teamResearchRepository.avgTeamBalance(subject.getId(), subject.getBuildingType());
+
+        double alpha = subject.getBuildingType() == BuildingType.PRODUCTION_FACTORY ?
+                time.getRAndDPriceMultiplierProduction() : time.getRAndDPriceMultiplierAssembly();
+
+        return (int) (alpha * avgTeamBalance);
     }
 
     private int calculateDuration(ResearchSubject subject, double N_tOnN, Time time) {
@@ -333,34 +389,90 @@ public class ScheduleService {
         return ((int) (baseTime * 60));
     }
 
-    private int calculateBuildingsCost(List<Building> buildings) {
-        int result = 0;
-        for (BuildingType type : BuildingType.values()) {
-            result += buildings.stream().filter(building -> building.getType() == type).count() *
-                    buildingInfoRepository.findById(type).orElseGet(BuildingInfo::new).getBuildPrice();
-        }
-        return result;
-    }
 
-    private Long getTeamWealth(Team team, StorageProductRepository storageProductRepository,
-                               BuildingRepository buildingRepository, BuildingInfoRepository buildingInfoRepository) {
+
+    public Long getTeamWealth(Long teamId) {
         long wealth = 0L;
-        List<StorageProduct> teamsProduct = storageProductRepository.findAllByTeamId(team.getId());
+        Iterable<BuildingInfo> buildingInfos = buildingInfoRepository.findAll();
+        Team team = teamRepository.findById(teamId).get();
+        List<StorageProduct> teamsProduct = storageProductRepository.findAllByTeamId(teamId);
         for (StorageProduct storageProduct : teamsProduct) {
-            wealth += (long) storageProduct.getProduct().getPrice() * storageProduct.getInStorageAmount();
+            wealth += storageProduct.getProduct().getMinPrice() * storageProduct.getInStorageAmount();
         }
-        List<Building> teamBuildings = buildingRepository.findAllByTeamId(team.getId());
+        List<Building> teamBuildings = buildingRepository.findAllByTeamId(teamId);
         for (Building building : teamBuildings) {
-            wealth += buildingInfoRepository.findById(building.getType()).orElseGet(BuildingInfo::new).getBuildPrice();
+            for (BuildingInfo buildingInfo : buildingInfos) {
+                if (buildingInfo.getType().equals(building.getType())) {
+                    wealth += buildingInfo.getBuildPrice();
+                    wealth += building.isUpgraded() ? buildingInfo.getUpgradePrice() : 0;
+                }
+            }
+
+        }
+        List<TeamResearch> teamResearches = teamResearchRepository.findAllByTeamIdAndAndEndTimeBefore(teamId,
+                java.sql.Timestamp.valueOf(LocalDateTime.now(ZoneOffset.UTC)));
+        for (TeamResearch teamResearch : teamResearches) {
+            wealth += teamResearch.getPaidAmount();
         }
         wealth += team.getBalance();
         return wealth;
     }
 
-    private Long calculateRegionPrice(Long currentPopulation) {
-        Time time = timeRepository.findById(1L).get();
-        Long scale = time.getScale();
-        Integer teamsCount = teamRepository.getCount();
-        return (long) ((1 + (2.25 / (0.8 + 9 * Math.exp(-0.8 * (16 * currentPopulation / (teamsCount - 0.26)))))) * scale);
+    private void cancelOrder(Order order) {
+        Team team = order.getSubmitter();
+        if (order.getType() == OrderType.BUY) {
+            team.setBalance(team.getBalance() + (order.getUnitPrice() * order.getProductAmount()));
+            teamRepository.save(team);
+        } else {
+            StorageProduct sp = getSPFromProduct(team, order.getProduct()).get();
+
+            TeamUtil.removeProductFromBlock(
+                    sp,
+                    order.getProductAmount()
+            );
+            TeamUtil.addProductToSellable(
+                    sp,
+                    order.getProductAmount()
+            );
+            storageProductRepository.save(sp);
+        }
+
+        List<Offer> offers = new ArrayList<>();
+
+        offerRepository.findAllByOrder_IdAndCancelledIsFalseAndDeclinedIsFalse(order.getId()).forEach(
+                o -> {
+                    try {
+                        undoOffer(o);
+                    } catch (BadRequestException e) {
+                        throw new RuntimeException(e);
+                    }
+                    o.setDeclined(true);
+                    offers.add(o);
+                }
+        );
+        offerRepository.saveAll(offers);
+
+        order.setCancelled(true);
+        orderRepository.save(order);
+    }
+
+    private void undoOffer(Offer offer)
+            throws BadRequestException {
+        if (offer.getOrder().getType() == OrderType.SELL) {
+            Team team = offer.getOfferer();
+            team.setBalance(team.getBalance() + offer.getOrder().getProductAmount() * offer.getOrder().getUnitPrice());
+            teamRepository.save(team);
+        } else {
+            StorageProduct sp = getSPFromProduct(offer.getOfferer(), offer.getOrder().getProduct()).get();
+            TeamUtil.removeProductFromBlock(
+                    sp,
+                    offer.getOrder().getProductAmount()
+            );
+            TeamUtil.addProductToSellable(
+                    sp,
+                    offer.getOrder().getProductAmount()
+            );
+            storageProductRepository.save(sp);
+        }
     }
 }
