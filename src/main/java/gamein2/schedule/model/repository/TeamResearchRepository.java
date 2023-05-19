@@ -31,7 +31,7 @@ public interface TeamResearchRepository extends JpaRepository<TeamResearch, Long
     TeamResearch findByTeam_IdAndSubject_IdAndEndTimeBefore(Long teamId, Long subjectId, LocalDateTime now);
 
 
-    List<TeamResearch> findAllByTeamIdAndAndEndTimeBefore(Long teamId, Date endTime);
+    List<TeamResearch> findAllByTeamIdAndAndEndTimeBefore(Long teamId, LocalDateTime endTime);
 
 
 

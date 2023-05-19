@@ -410,7 +410,7 @@ public class ScheduleService {
 
         }
         List<TeamResearch> teamResearches = teamResearchRepository.findAllByTeamIdAndAndEndTimeBefore(teamId,
-                java.sql.Timestamp.valueOf(LocalDateTime.now(ZoneOffset.UTC)));
+                LocalDateTime.now(ZoneOffset.UTC));
         for (TeamResearch teamResearch : teamResearches) {
             wealth += teamResearch.getPaidAmount();
         }

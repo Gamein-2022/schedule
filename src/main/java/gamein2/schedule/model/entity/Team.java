@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.LazyCollection;
+import org.hibernate.annotations.LazyCollectionOption;
 
 import javax.persistence.*;
 import java.util.List;
@@ -23,33 +25,35 @@ public class Team {
     @OneToMany
     private List<User> users;
 
-    @Column(name = "is_region_upgraded", columnDefinition = "boolean default false")
-    private Boolean isRegionUpgraded = false;
-
-    @OneToMany
+    @OneToMany(cascade = CascadeType.ALL)
     private List<Shipping> shippings;
 
     @OneToOne(optional = false)
     private User owner;
 
-    @Column(name = "balance", nullable = false)
+    @Column(name = "balance", nullable = false, columnDefinition = "bigint default 412000000")
     private long balance;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false, unique = true)
     private String name;
 
     @Column(name = "region")
     private int region;
 
-    @OneToMany(mappedBy = "team")
+    @LazyCollection(LazyCollectionOption.FALSE)
+    @OneToMany
     private List<StorageProduct> storageProducts;
+
+    @Column(name = "reserved_space", nullable = false, columnDefinition = "int default 0")
+    private int reservedSpace = 0;
+
 
     @OneToMany
     private List<Building> buildings;
 
-    @OneToMany
-    List<Product> availableProductIds;
-
     @Column(name = "is_storage_upgraded",columnDefinition = "boolean default false")
     private Boolean isStorageUpgraded;
+
+    @Column(name = "is_region_upgraded", columnDefinition = "boolean default false")
+    private Boolean isRegionUpgraded = false;
 }
