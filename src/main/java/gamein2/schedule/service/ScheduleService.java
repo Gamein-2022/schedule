@@ -34,6 +34,7 @@ import static gamein2.schedule.util.TeamUtil.getSPFromProduct;
 @Service
 @EnableScheduling
 @Configuration
+@Transactional(isolation = Isolation.READ_COMMITTED)
 public class ScheduleService {
     private final TimeRepository timeRepository;
     private final TeamRepository teamRepository;
@@ -134,6 +135,7 @@ public class ScheduleService {
     }*/
 
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void buyFinalProducts() {
         Time time = timeRepository.findById(1L).get();
         if (time.getIsGamePaused()) return;
