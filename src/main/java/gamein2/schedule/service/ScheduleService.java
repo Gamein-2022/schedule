@@ -1,13 +1,9 @@
 package gamein2.schedule.service;
 
 import gamein2.schedule.exception.BadRequestException;
-import gamein2.schedule.model.dto.RegionDTO;
-import gamein2.schedule.model.dto.TimeResultDTO;
 import gamein2.schedule.model.entity.*;
 import gamein2.schedule.model.enums.BuildingType;
-import gamein2.schedule.model.enums.LogType;
 import gamein2.schedule.model.enums.OrderType;
-import gamein2.schedule.model.enums.ShippingMethod;
 import gamein2.schedule.model.repository.*;
 import gamein2.schedule.util.GameinTradeTasks;
 import gamein2.schedule.util.RestUtil;
@@ -54,6 +50,7 @@ public class ScheduleService {
     private final ResearchSubjectRepository researchSubjectRepository;
 
     private final TeamDateRepository teamDateRepository;
+
 
     @Value("${live.data.url}")
     private String liveUrl;
@@ -208,11 +205,11 @@ public class ScheduleService {
         teamRepository.save(gamein);
     }*/
 
-    @Scheduled(initialDelay = 2, fixedDelay = 10, timeUnit = TimeUnit.MINUTES)
+    @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.MINUTES)
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void saveTeamsWealth() {
         Time time = timeRepository.findById(1L).get();
-        if (time.getIsGamePaused()) return;
+        //if (time.getIsGamePaused()) return;
 
         for (Team team : teamRepository.findAll()) {
             WealthLog log = new WealthLog();
@@ -411,6 +408,10 @@ public class ScheduleService {
             }
 
         }
+
+        wealth += team.getIsStorageUpgraded() ? 645_000_000 : 0;
+        wealth += team.getIsRegionUpgraded() ? 170_000_000 : 0;
+
         List<TeamResearch> teamResearches = teamResearchRepository.findAllByTeamIdAndAndEndTimeBefore(teamId,
                 LocalDateTime.now(ZoneOffset.UTC));
         for (TeamResearch teamResearch : teamResearches) {
@@ -477,4 +478,17 @@ public class ScheduleService {
             storageProductRepository.save(sp);
         }
     }
+    /*@Transactional()
+    @Scheduled(fixedDelay = 20,timeUnit = TimeUnit.DAYS)
+    void updateBalances(){
+        List<BalanceUpdate> balanceUpdates = balanceUpdateRepository.findAll();
+        for (BalanceUpdate balanceUpdate : balanceUpdates){
+            Team team = teamRepository.findById(balanceUpdate.getTeamId()).get();
+            team.setBalance(team.getBalance() + balanceUpdate.getCompensate());
+            teamRepository.save(team);
+
+        }
+        System.out.println("FUCK FUCK");
+
+    }*/
 }
