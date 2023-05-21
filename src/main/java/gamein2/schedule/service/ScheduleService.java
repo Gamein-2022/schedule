@@ -209,7 +209,7 @@ public class ScheduleService {
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void saveTeamsWealth() {
         Time time = timeRepository.findById(1L).get();
-        //if (time.getIsGamePaused()) return;
+        if (time.getIsGamePaused()) return;
 
         for (Team team : teamRepository.findAll()) {
             WealthLog log = new WealthLog();
