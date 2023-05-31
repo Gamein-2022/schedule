@@ -81,7 +81,7 @@ public class ScheduleService {
         this.teamDateRepository = teamDateRepository;
     }
 
-    /*@Transactional
+    @Transactional
     @Scheduled(initialDelay = 0,fixedDelay = 4, timeUnit = TimeUnit.MINUTES)
     public void storageCost() {
         Time time = timeRepository.findById(1L).get();
@@ -89,47 +89,47 @@ public class ScheduleService {
 
         if (time.getIsRegionPayed()) {
             System.out.println("--> Start calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
-            String text = "کارشناسان گیمین در حال محاسبه هزینه انبارداری شما می باشند. شکیبا باشید.\uD83C\uDF3C";
-            RestUtil.sendNotificationToAll(text,"WARNING",liveUrl);
+//            String text = "کارشناسان گیمین در حال محاسبه هزینه انبارداری شما می باشند. شکیبا باشید.\uD83C\uDF3C";
+//            RestUtil.sendNotificationToAll(text,"WARNING",liveUrl);
             teamDateRepository.updateAllTeamDateAll(LocalDateTime.now(ZoneOffset.UTC));
             teamRepository.updateStorageCost(time.getScale());
-            List<Team> allTeams = teamRepository.findAll();
-            System.out.println("calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
-            TimeResultDTO timeResultDTO = TimeUtil.getTime(time);
-            System.out.println("calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
-            for (Team team : allTeams) {
-                if (team.getId().equals(0L)) continue;
-                long cost = 0L;
-                List<StorageProduct> teamProducts = team.getStorageProducts();
-                for (StorageProduct storageProduct : teamProducts) {
-                    long totalVolume = storageProduct.getInStorageAmount();
-                    cost += totalVolume * storageProduct.getProduct().getMinPrice();
-                }
-                if (team.getBalance() >= cost / time.getStorageCostScale()) {
-                    team.setBalance(team.getBalance() - cost / time.getStorageCostScale());
-                    Log log = new Log();
-                    log.setType(LogType.STORAGE_COST);
-                    log.setTeam(team);
-                    log.setTotalCost(cost / time.getStorageCostScale());
-                    log.setProductCount(0L);
-                    log.setTimestamp(LocalDateTime.of(Math.toIntExact(timeResultDTO.getYear()),
-                            Math.toIntExact(timeResultDTO.getMonth()),
-                            Math.toIntExact(timeResultDTO.getDay()),
-                            12,
-                            23));
-                    logRepository.save(log);
-
-                } else
-                    team.setBalance(0);
-            }
-            System.out.println("calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
-
-            text = "هزینه انبارداری این ماه از حساب شما برداشت شد. موفق باشید.";
-            RestUtil.sendNotificationToAll(text, "UPDATE_BALANCE", liveUrl);
+//            List<Team> allTeams = teamRepository.findAll();
+//            System.out.println("calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
+//            TimeResultDTO timeResultDTO = TimeUtil.getTime(time);
+//            System.out.println("calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
+//            for (Team team : allTeams) {
+//                if (team.getId().equals(0L)) continue;
+//                long cost = 0L;
+//                List<StorageProduct> teamProducts = team.getStorageProducts();
+//                for (StorageProduct storageProduct : teamProducts) {
+//                    long totalVolume = storageProduct.getInStorageAmount();
+//                    cost += totalVolume * storageProduct.getProduct().getMinPrice();
+//                }
+//                if (team.getBalance() >= cost / time.getStorageCostScale()) {
+//                    team.setBalance(team.getBalance() - cost / time.getStorageCostScale());
+//                    Log log = new Log();
+//                    log.setType(LogType.STORAGE_COST);
+//                    log.setTeam(team);
+//                    log.setTotalCost(cost / time.getStorageCostScale());
+//                    log.setProductCount(0L);
+//                    log.setTimestamp(LocalDateTime.of(Math.toIntExact(timeResultDTO.getYear()),
+//                            Math.toIntExact(timeResultDTO.getMonth()),
+//                            Math.toIntExact(timeResultDTO.getDay()),
+//                            12,
+//                            23));
+//                    logRepository.save(log);
+//
+//                } else
+//                    team.setBalance(0);
+//            }
+//            System.out.println("calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
+//
+//            text = "هزینه انبارداری این ماه از حساب شما برداشت شد. موفق باشید.";
+//            RestUtil.sendNotificationToAll(text, "UPDATE_BALANCE", liveUrl);
 
             System.out.println("--> End calculating storage cost :" + LocalDateTime.now(ZoneOffset.UTC));
         }
-    }*/
+    }
 
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
     @Transactional(isolation = Isolation.READ_COMMITTED)
