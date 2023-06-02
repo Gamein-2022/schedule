@@ -131,7 +131,7 @@ public class GameinTradeTasks {
 //            sp.setSellableAmount(sp.getSellableAmount() - order.getSoldQuantity());
             TeamUtil.removeProductFromStorage(sp, order.getSoldQuantity());
             TeamUtil.removeProductFromBlock(sp, order.getQuantity());
-            TeamUtil.addProductToSellable(sp, order.getQuantity() - order.getSoldQuantity());
+//            TeamUtil.addProductToSellable(sp, order.getQuantity() - order.getSoldQuantity());
 //            spRepo.save(sp);
             sps.add(sp);
         });
