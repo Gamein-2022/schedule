@@ -189,8 +189,8 @@ public class GameinTradeTasks {
         eraDemand.put(0L, firstEraDemand);
         eraDemand.put(1163L, secondEraDemand);
         eraDemand.put(2738L, thirdEraDemand);
-        eraDemand.put(4688L, fourthEraDemand);
-        eraDemand.put(7425L, fifthEraDemand);
+        eraDemand.put(6105L, fourthEraDemand);
+        eraDemand.put(7680L, fifthEraDemand);
 
         StringBuilder productDemands = new StringBuilder();
         for (Product p : products) {
