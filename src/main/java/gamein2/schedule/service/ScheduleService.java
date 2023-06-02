@@ -87,7 +87,7 @@ public class ScheduleService {
             String text = "کارشناسان گیمین در حال محاسبه هزینه انبارداری شما می باشند.\uD83C\uDF3C";
             RestUtil.sendNotificationToAll(text,"WARNING",liveUrl);
             teamDateRepository.updateAllTeamDateAll(LocalDateTime.now(ZoneOffset.UTC));
-            teamRepository.updateStorageCost(time.getScale());
+            teamRepository.updateStorageCost(Long.valueOf(time.getStorageCostScale()));
 //            List<Team> allTeams = teamRepository.findAll();
 //            System.out.println("calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
 //            TimeResultDTO timeResultDTO = TimeUtil.getTime(time);
