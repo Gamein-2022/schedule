@@ -56,11 +56,6 @@ public class ScheduleService {
     private String liveUrl;
 
 
-
-
-
-
-
     public ScheduleService(TimeRepository timeRepository, TeamRepository teamRepository, TeamResearchRepository teamResearchRepository, FinalProductSellOrderRepository finalProductSellOrderRepository, ProductRepository productRepository, DemandRepository demandRepository, RegionRepository regionRepository, LogRepository logRepository, StorageProductRepository storageProductRepository, OrderRepository orderRepository, OfferRepository offerRepository, DemandLogRepository demandLogRepository, BuildingRepository buildingRepository, BuildingInfoRepository buildingInfoRepository, WealthLogRepository wealthLogRepository, ResearchSubjectRepository researchSubjectRepository, TeamDateRepository teamDateRepository) {
         this.timeRepository = timeRepository;
         this.teamRepository = teamRepository;
@@ -82,15 +77,15 @@ public class ScheduleService {
     }
 
     @Transactional
-    @Scheduled(initialDelay = 0,fixedDelay = 4, timeUnit = TimeUnit.MINUTES)
+    @Scheduled(fixedDelay = 4, timeUnit = TimeUnit.MINUTES)
     public void storageCost() {
         Time time = timeRepository.findById(1L).get();
-
-
+        if (time.getIsGamePaused())
+            return;
         if (time.getIsRegionPayed()) {
             System.out.println("--> Start calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
-//            String text = "کارشناسان گیمین در حال محاسبه هزینه انبارداری شما می باشند. شکیبا باشید.\uD83C\uDF3C";
-//            RestUtil.sendNotificationToAll(text,"WARNING",liveUrl);
+            String text = "کارشناسان گیمین در حال محاسبه هزینه انبارداری شما می باشند.\uD83C\uDF3C";
+            RestUtil.sendNotificationToAll(text,"WARNING",liveUrl);
             teamDateRepository.updateAllTeamDateAll(LocalDateTime.now(ZoneOffset.UTC));
             teamRepository.updateStorageCost(time.getScale());
 //            List<Team> allTeams = teamRepository.findAll();
@@ -124,8 +119,8 @@ public class ScheduleService {
 //            }
 //            System.out.println("calculating storage cost : " + LocalDateTime.now(ZoneOffset.UTC));
 //
-//            text = "هزینه انبارداری این ماه از حساب شما برداشت شد. موفق باشید.";
-//            RestUtil.sendNotificationToAll(text, "UPDATE_BALANCE", liveUrl);
+            text = "هزینه انبارداری این ماه از حساب شما برداشت شد. موفق باشید.";
+            RestUtil.sendNotificationToAll(text, "UPDATE_BALANCE", liveUrl);
 
             System.out.println("--> End calculating storage cost :" + LocalDateTime.now(ZoneOffset.UTC));
         }
@@ -387,7 +382,6 @@ public class ScheduleService {
         baseTime = Math.max(baseTime, 10);
         return ((int) (baseTime * 60));
     }
-
 
 
     public Long getTeamWealth(Long teamId) {
