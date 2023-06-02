@@ -173,6 +173,7 @@ public class ScheduleService {
         } catch (Exception e) {
             System.err.println("Error in scheduled task: trade service handler:");
             System.err.println(e.getMessage());
+            e.printStackTrace();
         }
     }
 
